@@ -1,0 +1,105 @@
+{% set cert_details = analysis.details %}
+<div class="panel panel-default">
+    <div class="panel-heading"><b>X509 Contents</b></div>
+   <div style="overflow-x: scroll">
+        <table class="cert-table" style="margin-left: 0;white-space: nowrap">
+            {% if 'sha256_hash' in cert_details %}
+                <tr>
+                    <th class="cert-outer">Certificate Fingerprint</th>
+                    <td class="cert-outer">
+                        <table class="cert-options" style="margin-left:0px">
+                            <tr>
+                                <th class="cert-th">SHA-256</th>
+                                <td class="cert-td"><a
+                                        href="https://censys.io/certificates/{{ cert_details['sha256_hash'] }}">{{ cert_details['sha256_hash'] }}</a>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            {% endif %}
+            <tr>
+                <th class="cert-outer" style="white-space: nowrap">Certificate</th>
+                <td class="cert-outer cert-text">Certificate:
+                    {% if 'serial_number' in cert_details %}
+                        {% set serial_number = '0' + '%x' % cert_details['serial_number'] %}
+                        <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        Serial Number:
+                        <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{ serial_number }}
+                    {% endif %}
+                    {% if 'issuer' in cert_details %}
+                        <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Issuer:
+                        {% if 'CN=' in cert_details['issuer'] %}
+                            {% set commonName = cert_details['issuer'].split('CN=')[1].split(',') %}
+                        {% else %}
+                            {% set commonName = '' %}
+                        {% endif %}
+                        <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        commonName&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= {{ commonName[0] }}
+
+                        {% if 'OU=' in cert_details['issuer'] %}
+                            {% set orgUnit = cert_details['issuer'].split('OU=')[1].split(',') %}
+                        {% else %}
+                            {% set orgUnit = '' %}
+                        {% endif %}
+                        <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        organizationalUnitName&nbsp;&nbsp;= {{ orgUnit[0] }}
+
+                        {% if 'O=' in cert_details['issuer'] %}
+                            {% set orgName = cert_details['issuer'].split('O=')[1].split(',') %}
+                        {% else %}
+                            {% set orgName = '' %}
+                        {% endif %}
+                        <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        organizationName&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= {{ orgName[0] }}
+
+                        {% if 'C=' in cert_details['issuer'] %}
+                            {% set country = cert_details['issuer'].split('C=')[1].split(',') %}
+                        {% else %}
+                            {% set country = '' %}
+                        {% endif %}
+                        <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        countryName&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= {{ country[0] }}
+                    {% endif %}
+                    {% if 'not_valid_before' in cert_details and 'not_valid_after' in cert_details %}
+                        <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Validity
+                        <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Not
+                        Before: {{ cert_details['not_valid_before'][:16] }}
+                        <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Not After
+                        : {{ cert_details['not_valid_after'][:16] }}
+                    {% endif %}
+                    {% if 'not_valid_before' in cert_details %}
+                        <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Subject:
+                        <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        commonName&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=
+                        {{ cert_details['common_name'] }}
+                    {% endif %}
+                    {% if 'extensions' in cert_details and cert_details['extensions'] %}
+                        <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X509v3 extensions:
+                        {% for section in cert_details['extensions'] %}
+                            {% for key in section %}
+                                <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{ key }}:
+                                {% for item in section[key] %}
+                                    {% if item is string %}
+                                    <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{ item }}
+                                    {% elif item is mapping %}
+                                        {% for subitem in item %}
+                                            <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{ subitem }}:
+                                            {% if item[subitem] is iterable %}
+                                                {% for subsubitem in item[subitem] %}
+                                                    <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{ subsubitem }}
+                                                {% endfor %}
+                                            {% else %}
+                                                <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{ item[subitem] }}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                            <br>
+                        {% endfor %}
+                    {% endif %}
+            </tr>
+        </table>
+    </div>
+</div>

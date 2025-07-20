@@ -1,0 +1,150 @@
+<table class="table table-bordered table-condensed">
+    {% if 'ldap' in analysis_presenter.details %}
+        {% if 'displayName' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">Name</td>
+            <td class="col-md-10">{{analysis_presenter.details['ldap']['displayName']}}</td>
+        </tr>
+        {% endif %}
+        {% if 'mail' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">Email</td>
+            <td class="col-md-10"><a href="mailto:{{analysis_presenter.details['ldap']['mail']}}">{{analysis_presenter.details['ldap']['mail']}}</a></td>
+        </tr>
+        {% endif %}
+        {% if 'company' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">Company</td>
+            <td class="col-md-10">{{analysis_presenter.details['ldap']['company']}}</td>
+        </tr>
+        {% endif %}
+        {% if 'department' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">Department</td>
+            <td class="col-md-10">{{analysis_presenter.details['ldap']['department']}}</td>
+        </tr>
+        {% endif %}
+        {% if 'division' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">Division</td>
+            <td class="col-md-10">{{analysis_presenter.details['ldap']['division']}}</td>
+        </tr>
+        {% endif %}
+        {% if 'wWWHomePage' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">Group</td>
+            <td class="col-md-10">{{analysis_presenter.details['ldap']['wWWHomePage']}}</td>
+        </tr>
+        {% endif %}
+        {% if 'title' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">Title</td>
+            <td class="col-md-10">{{analysis_presenter.details['ldap']['title']}}</td>
+        </tr>
+        {% endif %}
+        {% if 'streetAddress' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">Address</td>
+            <td class="col-md-10">{{analysis_presenter.details['ldap']['streetAddress']}}</td>
+        </tr>
+        {% endif %}
+        {% if 'l' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">Location</td>
+            <td class="col-md-10">{{analysis_presenter.details['ldap']['l']}}</td>
+        </tr>
+        {% endif %}
+        {% if 'st' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">State/Province</td>
+            <td class="col-md-10">{{analysis_presenter.details['ldap']['st']}}</td>
+        </tr>
+        {% endif %}
+        {% if 'co' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">Country</td>
+            <td class="col-md-10">{{analysis_presenter.details['ldap']['co']}}</td>
+        </tr>
+        {% endif %}
+        {% if 'telephoneNumber' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">Phone</td>
+            <td class="col-md-10">{{analysis_presenter.details['ldap']['telephoneNumber']}}</td>
+        </tr>
+        {% endif %}
+        {% if 'pwdLastSet' in analysis_presenter.details['ldap'] %}
+        <tr>
+            <td class="col-md-2">Password Last Set</td>
+            <td class="col-md-10">{{analysis_presenter.details['ldap']['pwdLastSet']}}</td>
+        </tr>
+        {% endif %}
+    {% endif %}
+    {% if 'manager_ldap' in analysis_presenter.details and analysis_presenter.details['manager_ldap'] %}
+        {% if 'displayName' in analysis_presenter.details['manager_ldap'] %}
+        <tr>
+            <td class="col-md-2">Manager</td>
+            <td class="col-md-10">{{analysis_presenter.details['manager_ldap']['displayName']}}</td>
+        </tr>
+        {% endif %}
+        {% if 'mail' in analysis_presenter.details['manager_ldap'] %}
+        <tr>
+            <td class="col-md-2">Manager Email</td>
+            <td class="col-md-10"><a href="mailto:{{analysis_presenter.details['manager_ldap']['mail']}}">{{analysis_presenter.details['manager_ldap']['mail']}}</a></td>
+        </tr>
+        {% endif %}
+        {% if 'telephoneNumber' in analysis_presenter.details['manager_ldap'] %}
+        <tr>
+            <td class="col-md-2">Manager Phone</td>
+            <td class="col-md-10">{{analysis_presenter.details['manager_ldap']['telephoneNumber']}}</td>
+        </tr>
+        {% endif %}
+    {% endif %}
+</table>
+
+<p><b>Group Membership</b></p>
+
+<table class="table table-bordered table-condensed">
+    {% if 'ldap' in analysis_presenter.details %}
+        {% if 'entitlements' in analysis_presenter.details['ldap'] %}
+            <tr>
+                <th>Group</th>
+                <th>Organization</th>
+                <th>Domain</th>
+            </tr>
+            {% set entitlements = [] %}
+            {% for entitlement in analysis_presenter.details['ldap']['entitlements'] %}
+                {% set parts = entitlement['group'].split(',') %}
+                {% set group = [] %}
+                {% set org = [] %}
+                {% set domain = [] %}
+                {% for part in parts %}
+                    {% if part.startswith('CN=') %}
+                        {% do group.append(part[3:]) %}
+                    {% elif part.startswith('OU=') %}
+                        {% do org.append(part[3:]) %}
+                    {% else %}
+                        {% do domain.append(part[3:]) %}
+                    {% endif %}
+                {% endfor %}
+                {% do entitlements.append(('.'.join(group), '.'.join(org), '.'.join(domain), entitlement['privileged'])) %}
+            {% endfor %}
+            {% for entitlement in entitlements|sort(attribute=0) %}
+            <tr {% if entitlement[3] %}style='background-color:#FFFFB0;'{% endif %}>
+                <td>{{ entitlement[0] }}</td>
+                <td>{{ entitlement[1] }}</td>
+                <td>{{ entitlement[2] }}</td>
+            </tr>
+            {% endfor %}
+        {% elif 'memberOf' in analysis_presenter.details['ldap'] %}
+            {% for group in analysis_presenter.details['ldap']['memberOf'] %}
+            <tr>
+                <td class="col-md-12">{{group}}</td>
+            </tr>
+            {% endfor %}
+        {% endif %}
+    {% endif %}
+</table>
+
+<pre>
+    {{ analysis_presenter.details['ldap'] | pprint }}
+</pre>

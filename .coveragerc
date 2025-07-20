@@ -1,0 +1,8 @@
+[run]
+omit = 
+    tests/*
+    saq/modules/test.py
+source = 
+    app
+    saq
+    aceapi

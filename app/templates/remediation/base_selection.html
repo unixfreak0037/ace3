@@ -1,0 +1,24 @@
+<div class="tab-pane{% if first %} active{% endif %}" id="{{ target_type }}_targets">
+<table class="table table-striped">
+    <tr>
+        <th width="20"><input type="checkbox" onclick="toggle_checkboxes(this, '{{ target_type }}_remediation_target');update_checkbox_count('{{ target_type }}')"/></th>
+        <th width="80">Type</th>
+        {{header()}}
+        <th width="115">Status</th>
+    </tr>
+    {% for target in targets_by_type[target_type] %}
+    <tr class="{{target.css_class}}">
+        <td>
+            {% if target.type in unchecked_types %}
+                <input type="checkbox" name="{{ target_type }}_remediation_target" id="{{target.id}}" onclick="update_checkbox_count('{{ target_type }}')"/>
+            {% else %}
+                <input type="checkbox" name="{{ target_type }}_remediation_target" id="{{target.id}}" {% if target.state == "new" %}checked{% endif %} onclick="update_checkbox_count('{{ target_type }}')"/>
+            {% endif %}
+        </td>
+        <td>{{target.type}}</td>
+        {{display(target.value)}}
+        <td>{{target.state}}</td>
+    </tr>
+    {% endfor %}
+</table>
+</div>

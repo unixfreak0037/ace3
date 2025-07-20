@@ -1,0 +1,145 @@
+<div class="modal-body" id="new_event_dialog">
+  <input type="hidden" name ="event_id" value="{{event.id}}">
+  <table style="width:100%;table-layout:auto;">
+    <tr><th>Name</th><td><input class="form-control" type="text" id="event_name" name="event_name" value="{{event.name}}"></input></td></tr>
+    <tr>
+      <th>Status</th>
+      <td>
+        <select class="form-control" name="event_status" id="event_status">
+          {% for status in statuses %}
+              <option value="{{ status.value }}" {% if event.status.value == status.value %}SELECTED{% endif %}>{{ status.value }}</option>
+          {% endfor %}
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <th>Owner</th>
+      <td>
+        <select class="form-control" name="event_owner" id="event_owner">
+          {% for user in all_users | sort(attribute='gui_display') %}
+                {% if user.enabled %}
+                    <option value="{{user.id}}"  {% if event.owner_id == user.id %}SELECTED{% endif %}>{{user.gui_display}}</option>
+                {% endif %}
+            {% endfor %}
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <th>Remediation</th>
+      <td>
+        <select class="form-control" name="event_remediation" id="event_remediation">
+          {% for remediation in remediations %}
+              <option value="{{ remediation.value }}" {% if event.remediation.value == remediation.value %}SELECTED{% endif %}>{{ remediation.value }}</option>
+          {% endfor %}
+        </select>
+      </td>
+    </tr>
+  <tr>
+      <th>Type</th>
+      <td>
+        <select class="form-control" name="event_type" id="event_type">
+          {% for type in types %}
+              <option value="{{ type.value }}" {% if event.type.value == type.value %}SELECTED{% endif %}>{{ type.value }}</option>
+          {% endfor %}
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <th>Vector</th>
+      <td>
+        <select class="form-control" name="event_vector" id="event_vector">
+          {% for vector in vectors %}
+              <option value="{{ vector.value }}" {% if event.vector.value == vector.value %}SELECTED{% endif %}>{{ vector.value }}</option>
+          {% endfor %}
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <th>Severity</th>
+      <td>
+        <select class="form-control" name="event_risk_level" id="event_risk_level">
+          {% for risk_level in risk_levels %}
+              <option value="{{ risk_level.value }}" {% if event.risk_level.value == risk_level.value %}SELECTED{% endif %}>{{ risk_level.value }}</option>
+          {% endfor %}
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <th>Prevention Tool</th>
+      <td>
+        <select class="form-control" name="event_prevention" id="event_prevention">
+          {% for prevention_tool in prevention_tools %}
+              <option value="{{ prevention_tool.value }}" {% if event.prevention_tool.value == prevention_tool.value %}SELECTED{% endif %}>{{ prevention_tool.value }}</option>
+          {% endfor %}
+        </select>
+      </td>
+    </tr>
+    <tr><th>Comment</th><td><input class="form-control" type="text" id="event_comment" name="event_comment" value="{{event.comment}}"></input></td></tr>
+    <tr>
+      <th>Threat Actor</th>
+      <td>
+        <select class="form-control" name="campaign_id" id="campaign_id" onchange="toggleNewCampaignInput()">
+          <option value="NEW">NEW</option>
+          <option value="0" {% if not event.campaign_id %}SELECTED{% endif %}>None</option>
+          {% for campaign in campaigns %}
+              <option value="{{campaign.id}}" {% if event.campaign_id == campaign.id %}SELECTED{% endif %}>{{campaign.name}}</option>
+          {% endfor %}
+        </select>
+        <input class="form-control" type="text" id="new_campaign" name="new_campaign" style="display:none;"></input>
+      </td>
+    </tr>
+  </table>
+    {% if event.status.value != 'CLOSED' %}
+  <br>
+  <table>
+    <tr><th>Event Times (UTC)</th></tr>
+      <tr><th>Event Time</th><td style="padding-right:10px;"><input class="form-control" style="width:auto;" type="text" id="event_time" name="event_time" value="{{event.event_time}}" placeholder="None"/></td></tr>
+      <tr><th>Alert Time</th><td style="padding-right:10px;"><input class="form-control" style="width:auto;" type="text" id="alert_time" name="alert_time" value="{{event.alert_time}}" placeholder="None"/></td></tr>
+      <tr><th>Ownership Time</th><td style="padding-right:10px;"><input class="form-control" style="width:auto;" type="text" id="ownership_time" name="ownership_time" value="{{event.ownership_time}}" placeholder="None"/></td></tr>
+      <tr><th>Disposition Time</th><td style="padding-right:10px;"><input class="form-control" style="width:auto;" type="text" id="disposition_time" name="disposition_time" value="{{event.disposition_time}}" placeholder="None"/></td></tr>
+      <tr><th>Contain Time</th><td style="padding-right:10px;"><input class="form-control" style="width:auto;" type="text" id="contain_time" name="contain_time" value="{{event.contain_time}}" placeholder="None"/></td></tr>
+      <tr><th>Remediation Time</th><td style="padding-right:10px;"><input class="form-control" style="width:auto;" type="text" id="remediation_time" name="remediation_time" value="{{event.remediation_time}}" placeholder="None"/></td></tr>
+  </table><br>
+      {% endif %}
+  <h4>Threat
+    <button onclick="new_malware_option()" type="button" class="btn btn-default btn-sm"><span class="bi bi-plus"></span> Add</button>
+  </h4>
+  {% for mal in malware %}
+  {% if mal.name in event.malware_names %}
+  <div id="malware_option_{{mal.id}}">
+    <table style="width:100%;table-layout:auto;">
+      <tr>
+        <td style="width:100%;">
+          <select class="form-control" name="malware_selection_{{mal.id}}" id="malware_selection_{{mal.id}}" onchange="malware_selection_changed('{{mal.id}}')">
+            <option value="NEW">NEW</option>
+            {% for mal2 in malware %}
+            <option value="{{mal2.id}}" {% if mal2.name == mal.name %}SELECTED{% endif %}>{{mal2.name}}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td style="width:auto;">
+          <button onclick="remove_malware_option('{{mal.id}}')" type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+        </td>
+      </tr>
+      <tr id="new_malware_info_{{mal.id}}" style="display:none;">
+        <td colspan="2">
+          <div style="width:100%;"><input class="form-control" type="text" id="mal_name" name="mal_name_{{mal.id}}"></div>
+          <div class="col-xs-3"><input type="checkbox" name="threats_{{mal.id}}" value="botnet"> botnet</div>
+          <div class="col-xs-3"><input type="checkbox" name="threats_{{mal.id}}" value="fraud"> fraud</div>
+          <div class="col-xs-3"><input type="checkbox" name="threats_{{mal.id}}" value="downloader"> downloader</div>
+          <div class="col-xs-3"><input type="checkbox" name="threats_{{mal.id}}" value="infostealer"> infostealer</div>
+          <div class="col-xs-3"><input type="checkbox" name="threats_{{mal.id}}" value="keylogger"> keylogger</div>
+          <div class="col-xs-3"><input type="checkbox" name="threats_{{mal.id}}" value="ransomware"> ransomware</div>
+          <div class="col-xs-3"><input type="checkbox" name="threats_{{mal.id}}" value="rat"> rat</div>
+          <div class="col-xs-3"><input type="checkbox" name="threats_{{mal.id}}" value="rootkit"> rootkit</div>
+          <div class="col-xs-3"><input type="checkbox" name="threats_{{mal.id}}" value="customer threat"> customer threat</div>
+          <div class="col-xs-3"><input type="checkbox" name="threats_{{mal.id}}" value="wiper"> wiper</div>
+          <div class="col-xs-3"><input type="checkbox" name="threats_{{mal.id}}" value="traffic_direction_system"> traffic direction system</div>
+        </td>
+      </tr>
+    </table>
+    <hr style="margin-top:2px;margin-bottom:2px;">
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>

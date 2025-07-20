@@ -1,0 +1,405 @@
+<div class="row">
+    <div class="col">
+
+{% block alert_summary %}
+<table class="table table-bordered table-condensed">
+    {% if alert.archived %}
+    <tr>
+        <td colspan="2" class="col-md-12"><b><font color=red>This alert has been archived.  Most analysis and files have been deleted.</font></b></td>
+    </tr>
+    {% endif %}
+    <tr>
+        <td class="col-md-2">Alert Time</td>
+        <td class="col-md-10">{{alert.display_insert_date}} ({{alert.insert_date}} UTC)</td>
+    </tr>
+    <tr>
+        <td class="col-md-2">Event Time</td>
+        <td class="col-md-10">{{alert.display_event_time}} ({{alert.event_time}} UTC)</td>
+    </tr>
+    <tr>
+        <td class="col-md-2">Storage</td>
+        <td class="col-md-10">{{alert.storage_dir}}
+            <button class="btn btn-outline-dark btn-xs" type="button" id="copy_action_storage_dir" title="Copy to Clipboard"><span class="bi bi-copy"></span></button>
+            <script type="text/javascript">
+                $('#copy_action_storage_dir').on('click', function() {
+                    // avoid escaping issues going from python to javascript by using base64
+                    var value = decodeURIComponent(atob('{{alert.storage_dir | b64escape}}'));
+                    // see app/static/js/ace.js
+                    copy_to_clipboard(value);
+                    // let the user know it was copied by flashing it a bit
+                    $('#copy_action_storage_dir').effect("pulsate", { times:3 }, 500);
+                });
+            </script>
+        </td>
+    </tr>
+    <tr>
+        <td class="col-md-2">Source</td>
+        <td class="col-md-10">{{alert.tool}}</td>
+    </tr>
+    <tr>
+        <td class="col-md-2">Instance</td>
+        <td class="col-md-10">{{alert.tool_instance}}</td>
+    </tr>
+    {% if alert.playbook_url %}
+    <tr>
+        <td class="col-md-2">Playbook URL</td>
+        <td class="col-md-10">
+            <a target="_blank" href="{{alert.playbook_url}}">{{ alert.playbook_url }}</a>
+        </td>
+    </tr>
+    {% endif %}
+    <tr>
+        <td class="col-md-2">Alert Type</td>
+        <td class="col-md-10">
+        {% if alert.wiki and not alert.playbook_url %}
+            <a target="_blank" href="{{ alert.wiki }}">{{ alert.alert_type }}</a>
+        {% else %}
+            {{alert.alert_type}}
+        {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <td class="col-md-2">Status</td>
+        <td class="col-md-10">{{alert.status}}</td>
+    </tr>
+    {% if alert.disposition != 'OPEN' %}
+    <tr>
+        <td class="col-md-2">Disposition</td>
+	<td class="col-md-10"><b>{{alert.disposition}}</b> by {{alert.disposition_user.gui_display}} @ {{alert.display_disposition_time}} ({{alert.disposition_time}} UTC)</td>
+    </tr>
+    {% endif %}
+    {% if alert.event_mapping %}
+    <tr>
+        <td class="col-md-2">Event</td>
+        <td class="col-md-10">
+        {% for em in alert.event_mapping %}
+            <span class="badge text-bg-primary"><span class="bi bi-flash"></span> <b><a style="color: white;" target="_blank" href="{{url_for('events.index', direct=em.event.id)}}">{{em.event.name}}</a></b></span>
+        {% endfor %}
+        </td>
+    {% endif %}
+    <tr>
+        <td class="col-md-2">Queue</td>
+        <td class="col-md-10">{{alert.queue}}</td>
+    </tr>
+    {% if alert.owner %}
+    <tr>
+        <td class="col-md-2">Owner</td>
+        <td class="col-md-10">{{alert.owner.gui_display}} @ {{alert.owner_time}}</td>
+    </tr>
+    {% endif %}
+    {% if alert.remover %}
+    <tr>
+        <td class="col-md-2">Removal</td>
+        <td class="col-md-10">{{alert.remover.gui_display}} @ {{alert.removal_time}}</td>
+    </tr>
+    {% endif %}
+
+    {% for pivot_link in alert.pivot_links %}
+    <tr>
+        <td class="col-md-2">External Link</td>
+        <td class="col-md-10">
+            <a target="_blank" href="{{pivot_link.url}}">
+            {% if pivot_link.icon %}
+                <img src="{{ url_for('static', filename=pivot_link.icon) }}" width="12" height="12" align="absmiddle">
+            {% endif %}
+                {{pivot_link.text}}
+            </a></td>
+    </tr>
+    {% endfor %}
+
+    {% for comment in alert.comments %}
+    <tr>
+        <td class="col-md-2">Comment</td>
+        <td class="col-md-10">{% if comment.user.id == current_user.id %}<span class="bi bi-x-circle" onmousedown="delete_comment({{comment.comment_id}})"></span> {% endif %} {{comment.insert_date}} {{comment.user.gui_display}}<br>{{comment.comment}}</td>
+    </tr>
+    {% endfor %}
+
+    {% for detection in alert.all_detection_points %}
+    <tr>
+        <td class="col-md-2">Detection</td>
+        <td class="col-md-10"><a href="#detection_{{detection.id}}">{{detection.description}}</a></td>
+    </tr>
+    {% endfor %}
+
+    {% if alert.instructions %}
+    <tr>
+        <td class="col-md-2">Instructions</td>
+        <td class="col-md-10">{{alert.instructions}}</td>
+    </tr>
+    {% endif %}
+    
+    {#
+    <tr>
+        <td class="col-md-2">Detections</td>
+        <td class="col-md-10">{{alert.all_detection_points | length}} detections</td>
+    </tr>
+    #}
+
+</table>
+<script type="text/javascript">
+    var current_alert_owner_id = {{ alert.owner_id if alert.owner else "null" }};
+    // set the title of the window
+    document.title = atob("{{ alert.description | s64encode }}");
+</script>
+{% endblock %}
+
+    </div>
+</div>
+
+{% if observable_open_event_counts %}
+    <div class="panel panel-default">
+    {% set matching_open_events = observable_open_event_counts|dictsort(false, 'value')  %}
+    <div class="panel-heading">
+        <h3 class="panel-title">Matching Open Events: {{ matching_open_events | length }} Event(s) | {{ matching_open_events[-1][1] }}/{{ num_observables_in_alert }} matching observables | {{ matching_open_events[-1][0].name }} <a role="button" data-toggle="collapse" data-target="#collapse_matching_open_events" aria-expanded="true" aria-controls="collapse_matching_open_events">(hide/show)</a></h3>
+    </div>
+    {%if ace_config['gui'].getboolean('matching_open_events_collapsed') %}
+        <div class="panel-body collapse" id="collapse_matching_open_events">
+    {% else %}
+        <div class="panel-body" id="collapse_matching_open_events">
+    {% endif %}
+
+
+        <table class="table table-bordered table-condensed">
+            <tr>
+                <th>Event</th>
+                <th>Match</th>
+                <th>Threat Names</th>
+                <th>Tags</th>
+            </tr>
+
+            {% for item in observable_open_event_counts|dictsort(false, 'value')|reverse %}
+            <tr>
+                <td style="white-space: nowrap;"><a href="{{url_for('events.index', direct=item[0].id)}}" target="_blank">{{ item[0].name }}</a></td>
+                <td style="white-space: nowrap;">{{ ((item[1] / num_observables_in_alert) * 100)|round|int }}% ({{ item[1] }})</td>
+                <td style="white-space: nowrap;">{{ item[0].malware_names|join(', ') }}</td>
+                <td style="width: 100%;">{{ item[0].sorted_tags|join(', ') }}</td>
+            </tr>
+            {% endfor %}
+
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% block alert_details_panel %}
+<div class="row">
+    <div class="col">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Alert Details <a role="button" data-bs-toggle="collapse" data-bs-target="#collapse_alert_details" aria-expanded="true" aria-controls="collapse_alert_details">(hide/show)</a></h5>
+            </div>
+            <div class="card-body">
+                <div class="card-text {% if ace_config['gui'].getboolean('alert_details_collapsed') %} collapse{% endif %}" id="collapse_alert_details">
+                    <!-- by default we just pretty-print the json -->
+                    {% block alert_details %} <code><pre>{{ analysis.details | pprint }}</pre></code> {% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% macro display_summary_detail(summary_detail) %}
+<div class="row">
+    <div class="col">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h4>{{summary_detail.header}}</h4>
+            </div>
+            <div class="card-body">
+                <div class="card-text">
+                    {% if summary_detail.format == CONSTANTS.SUMMARY_DETAIL_FORMAT_PRE %}
+                        <pre style="white-space: pre-wrap">{{summary_detail.content}}</pre>
+                    {% else %}
+                        {{summary_detail.content}}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% if alert.summary_details %}
+<div class="row">
+    <div class="col">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Summary Details <a role="button" data-bs-toggle="collapse" data-bs-target="#collapse_alert_summary_details" aria-expanded="true" aria-controls="collapse_alert_summary_details">(hide/show)</a></h5>
+            </div>
+            <div class="card-body" id="collapse_alert_summary_details">
+                <div class="card-text">
+                {% for summary_detail in alert.summary_details %}
+                    {{ display_summary_detail(summary_detail) }}
+                {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% macro display_tree_node(node) %}
+    {% if (not prune_display_tree or node.visible) and node.should_render %}
+        {% if not node.is_root_analysis %}
+            <li class="saq-analysis-li">
+                {# add collapse button if collapsible #}
+                {% if node.is_collapsible(prune_display_tree) %}
+                    <i class="toggle-icon bi bi-chevron-down" onclick=collapseTree(this)></i>
+                {% else %}
+                    <span class="saq-analysis-bullet">&bull;</span>
+                {% endif %}
+
+                {# display observable type and value if node is an observable #}
+                {% if not node.is_analysis %}
+                    <b>{{node.obj.display_type}}</b><span> : </span>
+                {% endif %}
+
+                {# add detection points #}
+                {% for dp in node.obj.detections %}
+                    <a name="detection_{{ dp.id }}"></a>
+                    <button type="button" class="btn btn-danger btn-xs" data-bs-toggle="tooltip" data-placement="right" title="{{dp.display_description | e}}">
+                        <span class="bi bi-fire" aria-hidden="true"></span>
+                    </button>
+                {% endfor %}
+
+                {% if node.is_analysis %}
+                    {% if node.obj.summary is none %}
+                        {# if no summary is available then we just display the str rep of the analysis #}
+                        {{node.obj}}
+                    {% else %}
+                        {% if node.presenter.is_drillable and not alert.archived %}
+                            <a href="{{ url_for('analysis.index', alert_uuid=alert.uuid, observable_uuid=node.parent.obj.id, module_path=node.obj.module_path) }}" title="{{node.obj.question}}">
+                                {{node.presenter.display_name}}
+                            </a>
+                        {% else %}
+                            {# if an alert has been archived then we do not create links because the analysis has been deleted #}
+                            {{node.presenter.display_name}}
+                        {% endif %}
+                    {% endif %}
+
+                    {# display any external (pivot) links #}
+                    {% for pivot_link in node.obj.pivot_links %}
+                        <a target="_blank" href="{{pivot_link.url}}">
+                            {% if pivot_link.icon %}<img src="{{ url_for('static', filename=pivot_link.icon) }}" width="12" height="12" align="absmiddle" alt="{{pivot_link.text}}">{% else %}{{pivot_link.text}}{% endif %}
+                        </a>
+                    {% endfor %}
+
+                    {# add tags #}
+                    {% for tag in node.obj.tags %}
+                        {% if tag.level != 'hidden' %}
+                            <span class="badge text-bg-{{tag.css_class}}" style="cursor:pointer" onmousedown="set_filters({'Tag':['{{tag}}']})">{{ tag }}</span>
+                            {% if tag.name.lower().startswith('atos') %} 🤡 {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    {% with _observable=node.obj, alert=alert %}
+                        {% include node.presenter.template_path %}
+                    {% endwith %}
+                {% endif %}
+            </li>
+
+            {% if node.is_analysis %}
+                {% for summary_detail in node.obj.summary_details %}
+                    {{ display_summary_detail(summary_detail) }}
+                {% endfor %}
+            {% endif %}
+        {% endif %}
+
+        {# recursively display child nodes #}
+        {% if not node.is_analysis and node.reference_node is not none %}
+            {% if node.reference_node.is_collapsible(prune_display_tree) %} 
+                <ul><li class="saq-analysis-li"><span class="saq-analysis-bullet">&bull;</span><a href="#{{node.reference_node.uuid}}">Jump To Analysis</a></li></ul>
+            {% endif %}
+        {% else %}
+            <ul>
+                {% for child in node.children %}
+                    {{ display_tree_node(child) }}
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endif %}
+{% endmacro %}
+
+{% if alert.remediation_targets | length > 0 %}
+
+{# Count Remediation Statuses #}
+{% set remediation_status = {'success': 0, 'failed': 0, 'in_progress': 0} %}
+{% for target in alert.remediation_targets %}
+    {% if target.css_class == 'success' %}
+        {{ increment(remediation_status, 'success') }}
+    {% elif target.css_class == 'warning'%}
+        {{ increment(remediation_status, 'in_progress') }}
+    {% elif target.css_class == 'danger'%}
+        {# We don't need to remediate external emails, so we can mark those failures as successes #}
+        {# Do that here by grabbing most recent remediation event and checking the message #}
+        {% if target.history[0].results.values() %}
+            {%  set results =  target.history[0].results.values() | first %}
+            {% if results['message'] == 'external domain' %}
+                {{ increment(remediation_status, 'success') }}
+            {% else %}
+                {{ increment(remediation_status, 'failed') }}
+            {% endif %}
+        {% else %}
+            {{ increment(remediation_status, 'failed') }}
+        {% endif %}
+    {% endif %}
+{% endfor %}
+
+<div class="row">
+    <div class="col">
+        <div class="card mb-3">
+            <div class="card-heading">
+                <h3>Remediation Targets: {{ remediation_status['success'] }} Successful | {{ remediation_status['failed'] }} Failed | {{ remediation_status['in_progress'] }} In Progress <a role="button" data-toggle="collapse" data-target="#collapse_remediation_targets" aria-expanded="true" aria-controls="collapse_remediation_targets">(hide/show)</a></h3>
+            </div>
+            <div class="card-body collapse" id="collapse_remediation_targets">
+                <div class="card-text">
+                    {% for target_type in target_types %}
+                    {% with first=loop.first, base='remediation/base_results.html', targets=target_types[target_type], prefix='' %}
+                    {% include ['remediation/{}.html'.format(target_type), 'remediation/default.html'] %}
+                    {% endwith %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if domain_summary_str %}
+<div class="row">
+    <div class="col">
+        <div class="card mb-3">
+            <div class="card-heading">
+                <h6>URL Domain Summary <a role="button" data-toggle="collapse" data-target="#collapseDomainSummary" aria-expanded="false" aria-controls="collapseHeaders">(hide/show)</a></h6>
+            </div>
+            <div class="card-body collapse" id="collapseDomainSummary">
+                <div class="card-text">
+                    <pre>{{domain_summary_str}}</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>
+                    {% if prune_display_tree %}
+                        Critical Analysis Overview
+                    {% else %}
+                        Analysis Overview
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="card-text">
+                    {{display_tree_node(display_tree)}}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

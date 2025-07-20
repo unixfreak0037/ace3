@@ -1,0 +1,4 @@
+{% extends "analysis/alert.html" %}
+{% block alert_details %}
+    <pre>{{ analysis.details | pprint }}</pre>
+{% endblock %}

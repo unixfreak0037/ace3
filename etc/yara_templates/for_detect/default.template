@@ -1,0 +1,14 @@
+rule detect_TEMPLATE_RULE_NAME : detect_TEMPLATE_TAGS
+{
+    meta:
+        author = "ACE Automation"
+        description = "ACE Observable Export"
+        tlp = "amber"
+        date = "TEMPLATE_DATE_STRING"
+        scope = "['detection']"
+        platform = "ACE"
+    strings:
+TEMPLATE_STRINGS
+    condition:
+        any of ($obs_*)
+}

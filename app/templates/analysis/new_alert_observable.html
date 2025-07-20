@@ -1,0 +1,37 @@
+<!-- 
+    NOTE
+    this is copy-paste from app/templates/analysis/analyze_file.html
+    so if you're making changes here you're probably going to want to change it there too -_-
+-->
+      <tr id="new_alert_observable_{{index}}">
+        <td style="padding-right:10px;padding-bottom:4px;">
+          <input type="text" class="form-control" style="width:100%;" name="observables_times_{{index}}" id="observables_times_{{index}}" value=""/>
+        </td>
+        <td style="padding-right:10px;padding-bottom:4px;">
+          <select class="form-select" style="width:100%;" name="observables_types_{{index}}" id="observables_types_{{index}}" onchange="new_alert_observable_type_changed('{{index}}')">
+            {% for observable_type in observable_types %}
+            <option value="{{observable_type}}" {% if observable_type == "file" %}SELECTED{% endif %}>{{observable_type}}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td id="new_alert_observable_value_{{index}}" style="padding-right:10px;padding-bottom:4px;">
+          <!-- keep track of what data separator is seletected (single or multi) -->
+          <input class="form-control" type="hidden" id="observable_data_sep_{{index}}" name="observable_data_sep_{{index}}" value="single">
+          <input class="form-control" type="file" style="width:100%;" name="observables_values_{{index}}" id="observables_values_{{index}}" value="">
+        </td>
+        <td id="new_alert_observable_directives_{{index}}" style="padding-right:10px;padding-bottom:4px;">
+        <div id="observables_directives_text_container_{{index}}" style="display: none">
+            <input class="form-control" type="text" style="width:100%" name="observables_directives_{{index}}" id="observables_directives_text_{{index}}" value="">
+        </div>
+        <div id="observables_directives_multiselect_container_{{index}}">
+            <select class="form-select" name="observables_directives_{{index}}[]" id="observables_directives_multiselect_{{index}}" multiple="multiple">
+            {% for directive in directives %}
+                <option value="{{directive}}" title="{{ directives[directive] }}">{{directive}}</option>
+            {% endfor %}
+            </select>
+        </div>
+        </td>
+        <td style="padding-bottom:4px;">
+          <button type="button" onclick="new_alert_remove_observable('{{index}}')" class="btn-close btn-outline-dark"></button>
+        </td>
+      </tr>

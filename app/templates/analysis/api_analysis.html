@@ -1,0 +1,8 @@
+{% if analysis.details %}
+    {% if 'gui_link' in analysis.details and analysis.details['gui_link'] != None %}
+        <h2><a href="{{ analysis.details['gui_link'] }}" target="_blank">Search in GUI</a></h2>
+    {% endif %}
+<pre>
+{{ analysis_presenter.details | pprint }}
+</pre>
+{% endif %}

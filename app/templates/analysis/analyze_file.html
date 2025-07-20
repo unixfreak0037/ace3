@@ -1,0 +1,123 @@
+{% extends "analysis/analyze.html" %}
+
+{% block tab_content %}
+<form enctype=multipart/form-data method="POST" action="{{url_for('analysis.new_alert')}}">
+  <div style="margin:10px;">
+    <h3>Alert Info</h3>
+    <table style="width:400px;table-layout:auto;margin-bottom:40px;">
+      <tr>
+        <th style="padding-right:10px;">Insert Date</th>
+        <td style="width:100%;padding-bottom:4px;">
+          <input type="text" class="form-control" id="new_alert_insert_date" name="new_alert_insert_date" value="{{date}}"/>
+        </td>
+      </tr>
+      <tr>
+        <th style="padding-right:10px;">Timezone</th>
+        <td style="width:100%;padding-bottom:4px;">
+          <select class="form-control" name="timezone">
+          {% for timezone in timezones %}
+            <option value="{{timezone}}" {% if timezone == 'UTC' %}SELECTED{% endif %}>{{timezone}}</option>
+          {% endfor %}
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <th style="padding-right:10px;">Alert Type</th>
+        <td style="width:100%;padding-bottom:4px;">
+          <input type="text" class="form-control" name="new_alert_type" value="manual"/>
+        </td>
+      </tr>
+      <tr>
+        <th style="padding-right:10px;">Description</th>
+        <td style="width:100%;padding-bottom:4px;">
+          <input type="text" class="form-control" name="new_alert_description" value="Manual Correlation"/>
+        </td>
+      </tr>
+      <tr>
+        <th style="padding-right:10px;">Queue</th>
+        <td style="width:100%;padding-bottom:4px;">
+          <select class="form-control" style="width:100%;" name="new_alert_queue">
+            <option value="default" {% if queue == "default" %}SELECTED{% endif %}>default</option>
+            <option value="external" {% if queue == "external" %}SELECTED{% endif %}>external</option>
+            <option value="intel" {% if queue == "intel" %}SELECTED{% endif %}>intel</option>
+            <option value="internal" {% if queue == "internal" %}SELECTED{% endif %}>internal</option>
+          </select>
+          <!--<input type="text" class="form-control" name="new_alert_queue" value="{{queue}}"/>-->
+        </td>
+      </tr>
+      <tr>
+        <th style="padding-right:10px;">Target ACE Node</th>
+        <td style="width:100%;padding-bottom:4px;">
+          <select class="form-control" name="target_node_data">
+          {% for node_id, node_name, node_location, company_id, company_name in available_nodes %}
+            <option value="{{node_id}},{{node_location}},{{company_id}}">{{node_location}} ({{company_name}})</option>
+          {% endfor %}
+          </select>
+        </td>
+      </tr>
+    </table>
+    <h3>Observables</h3>
+    <table style="width:100%;table-layout:auto;" id="new_alert_observables">
+      <tr>
+        <th style="width:15%;padding-bottom:4px;">Time</th>
+        <th style="width:15%;">Type<span style="color: #ff0000">*</span></th>
+        <th style="width:45%;">Value<span style="color: #ff0000">*</span></th>
+        <th style="width:25%;">Directives</th>
+        <th></th>
+      </tr>
+      <tr id="new_alert_observable_0">
+        <td style="padding-right:10px;padding-bottom:4px;">
+          <input type="text" class="form-control" style="width:100%;" name="observables_times_0" id="observables_times_0" value=""/>
+        </td>
+        <td style="padding-right:10px;padding-bottom:4px;">
+          <select class="form-control" style="width:100%;" name="observables_types_0" id="observables_types_0" onchange="new_alert_observable_type_changed('0')">
+            {% for observable_type in observable_types %}
+            <option value="{{observable_type}}" {% if observable_type == "file" %}SELECTED{% endif %}>{{observable_type}}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td id="new_alert_observable_value_0" style="padding-right:10px;padding-bottom:4px;">
+          <!-- keep track of what data separator is seletected (single or multi) -->
+          <input class="form-control" type="hidden" id="observable_data_sep_0" name="observable_data_sep_0" value="single">
+          <input class="form-control" type="file" style="width:100%;" name="observables_values_0" id="observables_values_0" value="">
+        </td>
+        <td id="new_alert_observable_directives_0" style="padding-right:10px;padding-bottom:4px;">
+        <div id="observables_directives_text_container_0" style="display: none">
+            <input class="form-control" type="text" style="width:100%" name="observables_directives_0" id="observables_directives_text_0" value="">
+        </div>
+        <div id="observables_directives_multiselect_container_0">
+            <select class="form-select" name="observables_directives_0[]" id="observables_directives_multiselect_0" multiple="multiple">
+            {% for directive in directives %}
+                <option value="{{directive}}" title="{{ directives[directive] }}">{{directive}}</option>
+            {% endfor %}
+            </select>
+        </div>
+        </td>
+        <td style="padding-bottom:4px;">
+          <button type="button" onclick="new_alert_remove_observable('0')" class="btn-close btn-outline-dark" aria-label="Close"></button>
+        </td>
+      </tr>
+    </table>
+    <table style="width:100%;table-layout:auto;margin-bottom:40px;" id="new_alert_observables">
+      <tr>
+        <th style="width:15%;padding-bottom:4px;">
+          <button type="button" onclick="new_alert_observable()" class="btn btn-outline-dark"><span class="bi bi-plus"></span> Add</button>
+        </th>
+        <th style="width:15%;"></th>
+        <th style="width:45%;"></th>
+        <th style="width:25%;"></th>
+        <th></th>
+      </tr>
+    </table>
+    <div style="width:100%;text-align:right;">
+      <button type="submit" class="btn btn-primary" id="submit_type_single" name="submit_type" value="single">Submit</button>
+      <button type="submit" class="btn btn-primary" id="submit_type_multi" name="submit_type" value="multiple" style="display:none">Submit Multiple Alerts</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/new_alert.js') }}?version={{ ACE_VERSION }}"></script>
+{% endblock %}

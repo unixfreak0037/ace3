@@ -1,0 +1,5 @@
+{% extends "analysis/default_observable.html" %}
+{% block observable_display_value %}{{_observable.display_value}}{% endblock %}
+{% block observable_display_misc %}
+ <a href="https://www.virustotal.com/gui/ip-address/{{_observable.value}}" target="_blank"><img src="{{url_for('static', filename='images/vt.png')}}" width="24" height="24"></img></a>
+{% endblock %}

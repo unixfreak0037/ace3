@@ -1,0 +1,10 @@
+//rule created automatically with intelligence
+rule TEMPLATE_RULE_NAME
+{
+    meta:
+        author = "Indicator Export"
+    strings:
+TEMPLATE_STRINGS
+    condition:
+        any of them
+}

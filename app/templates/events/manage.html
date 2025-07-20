@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block control_panel %}
+<div class="container-fluid">
+    <!-- control panel -->
+    <div class="row">
+        <div class="col-md-12">
+            <button id="btn-remove-alerts" type="button" class="btn btn-default btn-sm"><span class="bi bi-x"></span> Remove Alert(s)</button>
+        </div>
+    </div>
+</div>
+<div class="row" style="margin-top:5px;margin-left:0px;">
+    <div class="col-md-12">
+        <div class="row">
+            <div class="col-md-4">
+                <button type="button" id="btn-edit-filter" class="btn btn-default btn-sm" data-toggle="modal" data-target="#filter_modal">Edit Filters</button>
+                <button type="button" id="btn-reset-filters" class="btn btn-default btn-sm">Reset Filters</button>
+                <button type="button" id="btn-export-events" class="btn btn-default btn-sm" style="display: none" onclick="export_events_to_csv();">Export Events to CSV</button>
+                <button type="button" id="btn-show-add-event-tags" class="btn btn-default btn-sm" data-toggle="modal" data-target="#event_tag_modal" data-page="management" style="display: none"><span class="bi bi-tags"></span>  Add Tag(s)</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <table class="table table-hover table-condensed">
+                <thead>
+                <tr>
+                        <th class="event-cell"><input type="checkbox" id="master_checkbox"></th>
+                        <th></th>
+                        <th></th>
+                        <th><span id='sort_by_date' style="cursor:pointer">Date{% if sort_by == "date" %}{% if sort_dir %}&darr;{% else %}&uarr;{% endif %}{% endif %}</span></th>
+                        <th><span id='sort_by_event' style="cursor:pointer">Event{% if sort_by == "event" %}{% if sort_dir %}&darr;{% else %}&uarr;{% endif %}{% endif %}</span></th>
+                        {% if tip.name %}
+                            <th><span id="tip_name" style="cursor:pointer">TIP</span></th>
+                        {% endif %}
+                        <th><span id='sort_by_campaign' style="cursor:pointer">Threat Actor{% if sort_by == "campaign" %}{% if sort_dir %}&darr;{% else %}&uarr;{% endif %}{% endif %}</span></th>
+                        <th><span>Threat Type</span></th>
+                        <th><span>Threat Name</span></th>
+                        <th><span id='sort_by_risk_level' style="cursor:pointer">Severity{% if sort_by == "risk_level" %}{% if sort_dir %}&darr;{% else %}&uarr;{% endif %}{% endif %}</span></th>
+                        <th><span id='sort_by_disposition' style="cursor:pointer">Disposition{% if sort_by == "disposition" %}{% if sort_dir %}&darr;{% else %}&uarr;{% endif %}{% endif %}</span></th>
+                        <th><span id='sort_by_prevention' style="cursor:pointer">Prevention{% if sort_by == "prevention" %}{% if sort_dir %}&darr;{% else %}&uarr;{% endif %}{% endif %}</span></th>
+                        <th><span id='sort_by_remediation' style="cursor:pointer">Remediation{% if sort_by == "remediation" %}{% if sort_dir %}&darr;{% else %}&uarr;{% endif %}{% endif %}</span></th>
+                        <th><span id='sort_by_status' style="cursor:pointer">Status{% if sort_by == "status" %}{% if sort_dir %}&darr;{% else %}&uarr;{% endif %}{% endif %}</span></th>
+                        <th><span id='sort_by_owner' style="cursor:pointer">Owner{% if sort_by == "owner" %}{% if sort_dir %}&darr;{% else %}&uarr;{% endif %}{% endif %}</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                    <tr id="event_row_{{event.id}}">
+                        <td class="event-cell"><label><input type="checkbox" class="eventCheckbox" name="event_{{event.id}}" {% if event.id in session['checked'] %}checked{% endif %}></label></td>
+                        <td class="event-cell"><button onclick="load_event_alerts('{{event.id}}')" type="button" class="btn btn-default btn-xs"><span class="bi bi-caret-right-fill"></span></button></td>
+                        <td class="event-cell"><button onclick="edit_event('{{event.id}}')" type="button" class="btn btn-default btn-xs"><span class="bi bi-pencil"></span></button></td>
+                        <td class="event-cell">{{event.creation_date}}</td>
+                        <td class="event-cell">{{event.type.value}} - {{event.vector.value}} - <a target="_blank" href="{{url_for('events.index', direct=event.id)}}">{{event.name}}</a>
+                                                {% if event.wiki %} | <a href="{{ event.wiki }}" target="_blank">Wiki</a>{% endif %}
+                                                {% if event_tags[event.id]|length != 0 %}
+                                                    <br>
+                                                {% for tag in event_tags[event.id] %}
+                                                    <span class="badge text-bg-{{tag.css_class}}" style="cursor:pointer" onmousedown="add_filter('{{tag.name}}')">{{tag.name}}</span>
+                                                {% endfor %}
+                                                {% endif %}
+                        </td>
+                        {% if tip.name and tip.event_url(event.uuid) %}
+                            <td><a href="{{ tip.event_url(event.uuid) }}" target="_blank">{{ tip.name }}</a></td>
+                        {% endif %}
+                        <td class="event-cell">{{event.campaign.name}}</td>
+                        <td>
+                            {% for t in event.threats %}
+                            <span class="badge text-bg-primary">{{t}}</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for mal in event.malware %}
+                            <span class="badge text-bg-danger">{{mal.name}}</span>
+                            {% endfor %}
+                        </td>
+                        <td class="event-cell">{{event.risk_level.value}}</td>
+                        <td class="event-cell">{{event.disposition}}</td>
+                        <td class="event-cell">{{event.prevention_tool.value}}</td>
+                        <td class="event-cell">{{event.remediation.value}}</td>
+                        <td class="event-cell">{{event.status.value}}</td>
+                        <td class="event-cell">{{event.owner.gui_display}}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+
+<div class="modal fade" id="filter_modal" tabindex="-1" role="dialog" aria-labelledby="filter_modal_label" aria-hidden="true">
+    <form id="frm-filter" method="POST" action="{{url_for('events.manage')}}">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                <h4 class="modal-title" id="filter_modal_label">Edit Filter</h4>
+            </div>
+            <div class="modal-body">
+                <table style="width:100%;table-layout:auto;">
+                    <tr>
+                      <th>Date Range</th>
+                      <td>
+                        <input type="text" class="form-control" id="event_daterange" name="event_daterange" value="{{filter_state['event_daterange']}}"/>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>Status</th>
+                      <td>
+                        <select multiple class="form-control" name="filter_event_status">
+                            {% for status in statuses %}
+                                <option value="{{ status.value }}" {% if status.value in filter_state['filter_event_status'] %}SELECTED{% endif %}>{{ status.value }}</option>
+                            {% endfor %}
+                        </select>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>Owner</th>
+                      <td>
+                        <select multiple class="form-control" name="filter_event_owner">
+                            <option value="None" {% if 'None' in filter_state['filter_event_owner'] %}SELECTED{% endif %}>None</option>
+                            {% for user in all_users | sort(attribute='gui_display') %}
+                                <option value="{{user.id}}" {% if user.id|string in filter_state['filter_event_owner'] %}SELECTED{% endif %}>{{user.gui_display}}</option>
+                            {% endfor %}
+                        </select>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>Disposition</th>
+                      <td>
+                        <select multiple class="form-control" name="filter_event_disposition">
+                            {% for disp in dispositions %}
+                                <option value="{{ disp }}" {% if disp in filter_state['filter_event_disposition'] %}SELECTED{% endif %}>{{ disp }}</option>
+                            {% endfor %}
+                        </select>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>Type</th>
+                      <td>
+                        <select class="form-control" name="filter_event_type">
+                            <option value="ANY" {% if filter_state['filter_event_type'] == 'ANY' %}SELECTED{% endif %}>ANY</option>
+                            {% for type in types %}
+                                <option value="{{ type.value }}" {% if filter_state['filter_event_type'] == type.value %}SELECTED{% endif %}>{{ type.value }}</option>
+                            {% endfor %}
+                        </select>
+                      </td>
+                    </tr>
+                    <tr>
+                    <tr>
+                      <th>Vector</th>
+                      <td>
+                        <select class="form-control" name="filter_event_vector">
+                            <option value="ANY" {% if filter_state['filter_event_vector'] == 'ANY' %}SELECTED{% endif %}>ANY</option>
+                            {% for vector in vectors %}
+                                <option value="{{ vector.value }}" {% if filter_state['filter_event_vector'] == vector.value %}SELECTED{% endif %}>{{ vector.value }}</option>
+                            {% endfor %}
+                        </select>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>Prevention Tool</th>
+                      <td>
+                        <select class="form-control" name="filter_event_prevention_tool" >
+                            <option value="ANY" {% if filter_state['filter_event_prevention_tool'] == 'ANY' %}SELECTED{% endif %}>ANY</option>
+                            {% for prevention_tool in prevention_tools %}
+                                <option value="{{ prevention_tool.value }}" {% if filter_state['filter_event_prevention_tool'] == prevention_tool.value %}SELECTED{% endif %}>{{ prevention_tool.value }}</option>
+                            {% endfor %}
+                        </select>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>Severity</th>
+                      <td>
+                        <select class="form-control" name="filter_event_risk_level" >
+                            <option value="ANY" {% if filter_state['filter_event_risk_level'] == 'ANY' %}SELECTED{% endif %}>ANY</option>
+                            {% for risk_level in risk_levels %}
+                                <option value="{{ risk_level.value }}" {% if filter_state['filter_event_risk_level'] == risk_level.value %}SELECTED{% endif %}>{{ risk_level.value }}</option>
+                            {% endfor %}
+                        </select>
+                      </td>
+                    </tr>
+                    <tr>
+                        <th>Observable Type</th>
+                        <td>
+                            <select class="form-control" name="filter_observable_type">
+                                <option value="ANY" {% if filter_state['filter_observable_type'] == 'ANY' %}SELECTED{% endif %}>ANY</option>
+                                {% for observable_type in observable_types %}
+                                    <option value="{{ observable_type }}" {% if filter_state['filter_observable_type'] == observable_type %}SELECTED{% endif %}>{{ observable_type }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Observable Value</th>
+                        <td>
+                            <input type="text" class="form-control" name="filter_observable_value" {% if filter_state['filter_observable_value'] %}value="{{ filter_state['filter_observable_value'] }}"{% endif %}>
+                        </td>
+                    </tr>
+                    <tr>
+                      <th>Tag</th>
+                      <td>
+                        <select multiple class="form-control" name="filter_event_tag" id="filter_event_tag">
+                            {% for tag in tags %}
+                                <option value="{{ tag }}" {% if tag in filter_state['filter_event_tag'] %}SELECTED{% endif %}>{{ tag }}</option>
+                            {% endfor %}
+                        </select>
+                      </td>
+                    </tr>
+                </table><br>
+                <h4>Companies</h4>
+                <div class="row">
+                    {% for company in companies %}
+                    <div class="col-xs-3"><input type="checkbox" name="company_{{company.id}}" {{filter_state['company_{}'.format(company.id)]}}> {{company.name}}</input></div>
+                    {% endfor %}
+                </div><br>
+                <h4>Threat Actors</h4>
+                <div class="row">
+                    {% for campaign in campaigns %}
+                    <div class="col-xs-3"><input type="checkbox" name="campaign_{{campaign.id}}" {{filter_state['campaign_{}'.format(campaign.id)]}}> {{campaign.name}}</input></div>
+                    {% endfor %}
+                </div></br>
+                <h4>Threat</h4>
+                <div class="row">
+                    {% for mal in malware %}
+                    <div class="col-xs-12"><input type="checkbox" name="malz_{{mal.id}}" {{filter_state['malz_{}'.format(mal.id)]}}> {{mal.name}}</input></div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Nevermind</button>
+                <button type="submit" class="btn btn-primary" id="btn-apply-filter">Apply</button>
+            </div>
+        </div>
+    </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/events.js') }}?version={{ ACE_VERSION }}"></script>
+{% endblock %}

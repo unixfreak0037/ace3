@@ -1,0 +1,21 @@
+{% for target_type in target_types %}
+<script>
+    update_checkbox_count("{{ target_type }}");
+</script>
+{% endfor %}
+
+<ul class="nav nav-tabs" id="remediationTabContent" >
+    {% for target_type in target_types %}
+    <li {% if loop.first %}class="active"{% endif %}>
+        <a href="#{{ target_type }}_targets" data-toggle="tab">{{ target_type }} <span id="{{ target_type }}_checked_counter"></span> <i class="bi bi-check"></i></a>
+    </li>
+    {% endfor %}
+</ul>
+
+<div class="tab-content" id="target-tabs">
+{% for target_type in target_types %}
+{% with first=loop.first, base='remediation/base_selection.html' %}
+{% include ['remediation/{}.html'.format(target_type), 'remediation/default.html'] %}
+{% endwith %}
+{% endfor %}
+</div>

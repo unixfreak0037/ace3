@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block control_panel %}
+<div class="container-fluid">
+    <!-- control panel -->
+    <div class="row">
+        <div class="col">
+            <button type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#disposition_modal"><span class="bi bi-hand-thumbs-up"></span> Set Disposition</button>
+            <button id="btn-add-comment" type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#comment_modal" uuid=""><span class="bi bi-chat-right-text"></span> Add Comment</button>
+            <button id="btn-take-ownership" type="button" class="btn btn-outline-dark"><span class="bi bi-lock"></span> Take Ownership</button>
+            <button id="btn-assign-ownership-dialog" type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#assign_ownership_modal"><span class="bi bi-person-plus"></span> Assign Ownership</button>
+            <button id="btn-show-add-tag" type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#tag_modal" uuid=""><span class="bi bi-tags"></span> Add Tag(s)</button>
+            <button id="btn-show-remove-tag" type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#tag_remove_modal" uuid=""><span class="bi bi-tags"></span> Remove Tag(s)</button>
+            <button type="button" class="btn btn-outline-dark" onclick="show_remediation_targets(get_all_checked_alerts())"><span class="bi bi-magic"></span> Remediation</button>
+            <a class="button btn btn-outline-dark" href="{{ url_for('analysis.export_alerts_to_csv') }}"><span class="bi bi-filetype-csv"></span> Export to CSV</a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid" style="margin-top:5px;margin-bottom:7px;">
+    <div class="row">
+        <div class="col">
+            Filters | 
+            <span class="badge label-special" style="cursor:pointer" data-bs-toggle="modal" data-bs-target="#filter_modal">Edit</span>
+            <span class="badge label-special" style="cursor:pointer" onmousedown='reset_filters()'>Reset</span>
+            <span class="badge label-special" style="cursor:pointer" onmousedown='set_special_filter_24_hours()'>Last 24h</span>
+            <span class="badge label-special" style="cursor:pointer" onmousedown='set_special_filter_7_days()()'>Last 7d</span> | 
+            {% for _filter in session['filters'] %}
+                {% set name = _filter['name'] %}
+                {% set inverted = _filter['inverted'] %}
+                {% set values = _filter['values'] %}
+                {% if values|length > 0 %}
+                <span>{% if inverted %}NOT {% endif %}<span style="cursor:pointer" onmouseover="this.style.textDecoration='underline';" onmouseleave="this.style.textDecoration='';" onmousedown='remove_filter_category("{{name}}")'>{{name}}</span>: {% for index in range(values|length) %}<span style="cursor:pointer" onmouseover="this.style.textDecoration='underline';" onmouseleave="this.style.textDecoration='';" onmousedown='remove_filter("{{name}}", {{index}})'>{% if values[index] is none or values[index] is string %}{{values[index]}}{% else %}{{values[index]|join(':')}}{% endif %}</span>{% if index < (values|length) - 1 %} | {% endif %}{% endfor %}</span>
+                {% endif %}
+            {% endfor %}
+            <button id="btn-copy-filter" type="button" class="btn btn-outline-dark btn-xs" onclick="copy_filter_link('{{ url_for('analysis.set_filters') }}')"><span class="bi bi-copy"></span></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col">
+            <table class="table table-hover table-condensed">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="master_checkbox"/>
+                            </div>
+                        </th>
+                        <th><span onmousedown='set_sort_filter("Alert Date")' style="cursor:pointer;white-space: nowrap;">Date{% if session['sort_filter'] == 'Alert Date' %}{% if session['sort_filter_desc'] %}&uarr;{% else %}&darr;{% endif %}{% endif %}</span></th>
+                        <th class="w-100"><span onmousedown='set_sort_filter("Description")' style="cursor:pointer">Alert{% if session['sort_filter'] == 'Description' %}{% if session['sort_filter_desc'] %}&uarr;{% else %}&darr;{% endif %}{% endif %}{%if ace_config['gui'].getboolean('show_total_alert_count') %} ({{total_alerts}}){% endif %}</span></th>
+                        <th><span onmousedown='set_sort_filter("Owner")' style="cursor:pointer">Owner{% if session['sort_filter'] == 'Owner' %}{% if session['sort_filter_desc'] %}&uarr;{% else %}&darr;{% endif %}{% endif %}</span></th>
+                        {% if display_disposition %}
+                            <th><span onmousedown='set_sort_filter("Disposition")' style="cursor:pointer">Disposition{% if session['sort_filter'] == 'Disposition' %}{% if session['sort_filter_desc'] %}&uarr;{% else %}&darr;{% endif %}{% endif %}</span></th>
+                        {% endif %}
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alert in alerts %}
+                    {# we can use this ID to modify an alert row #}
+                    <tr id="alert_row_{{alert.uuid}}" >
+                        <td>
+                            <button onclick="load_alert_observables('{{alert.uuid}}'); toggle_chevron('alert_row_dropdown_{{alert.uuid}}')" type="button" class="btn btn-outline-primary btn-sm"><span id="alert_row_dropdown_{{alert.uuid}}" class="bi bi-chevron-down"></span></button>
+                        </td>
+                        <td>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="detail_{{alert.uuid}}" disposition="{{ alert.disposition }}" {% if alert.uuid in session['checked'] %}checked{% endif %}></input>
+                            </div>
+                        </td>
+                        <td style="white-space: nowrap;" title="{{alert.insert_date}}" id="alert_date_{{ alert.uuid }}">{{alert.display_insert_date}}</td>
+                        <td>
+                            <img src="{{url_for('static', filename='images/alert_icons/{}.png'.format(alert.icon))}}" width="24" height="24">
+                            <a href="{{ url_for('analysis.index', direct=alert.uuid) }}">({{alert.detection_count}}) {{alert.description}}</a>
+                            {% if alert.event_mapping %}
+                                {% for em in alert.event_mapping %}
+                                    <span class="badge text-bg-primary"><span class="bi bi-lightning"></span> <b><a style="color: white;" target="_blank" href="{{url_for('events.index', direct=em.event.id)}}">{{em.event.name}}</a></b></span>
+                                {% endfor %}
+                            {% endif %}
+                            {% if alert_tags[alert.uuid]|length != 0 %}
+                                {% for tag in alert_tags[alert.uuid] %}
+                                    <span class="badge text-bg-{{tag.css_class}}" style="cursor:pointer" onmousedown="add_filter('Tag', ['{{tag.name}}'])">{{tag.name}}</span>
+                                {% endfor %}
+                            {% endif %}
+                            {% if alert.remediation_status == 'success' %}
+                                <span class="badge text-bg-success" style="cursor:pointer" >remediated</span>
+                            {% elif alert.remediation_status == 'failed' %}
+                                <span class="badge text-bg-danger" style="cursor:pointer" >remediation failed</span>
+                            {% elif alert.remediation_status == 'processing' %}
+                                <span class="badge text-bg-warning" style="cursor:pointer" >remediating</span>
+                            {% endif %}
+                            {% if comments[alert.uuid]|length != 0 %}
+                                {% for comment in comments[alert.uuid] %}
+                                    <br />
+                                    <span style="font-size: x-small;">
+                                        ({{ comment.user.gui_display }}) {{ comment.comment }}
+                                    </span>
+                                {% endfor %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span style="cursor:pointer" onmousedown='add_filter("Owner", ["{{alert.owner.gui_display}}"])'>{{alert.owner.gui_display}}</span>
+                        </td>
+                        {% if display_disposition %}
+                        <td>
+                            <span class="badge text-bg-{{dispositions[alert.disposition]['css']}}" style="cursor:pointer" onmousedown='add_filter("Disposition", ["{{alert.disposition}}"])'>{{alert.disposition}}</span>
+                        </td>
+                        {% endif %}
+                        <td id="alert_status_{{ alert.uuid }}" style="white-space: nowrap;">{{alert.status}}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div> <!-- end column -->
+    </div> <!-- end row -->
+</div> <!-- end container -->
+
+<!-- display pagination options if not all alerts are shown -->
+{% if total_alerts > session['page_size'] %}
+<div style="white-space: nowrap;text-align: center;margin-bottom:20px;">
+    <button onclick="set_page_offset(0)" type="button" class="btn btn-primary btn-xs"><span class="bi bi-skip-start"></span></button>
+    <button onclick="set_page_offset({{session['page_offset'] - session['page_size']}})" type="button" class="btn btn-primary btn-xs"><span class="bi bi-skip-backward"></span></button>
+    <button onclick="set_page_size({{session['page_size']}})">{{session['page_offset'] + 1}} to {% if session['page_offset'] + session['page_size'] > total_alerts %}{{total_alerts}}{% else %}{{session['page_offset'] + session['page_size']}}{% endif %} of {{total_alerts}}</button>
+    <button onclick="set_page_offset({{session['page_offset'] + session['page_size']}})" type="button" class="btn btn-primary btn-xs"><span class="bi bi-skip-forward"></span></button>
+    <button onclick="set_page_offset({{(total_alerts // session['page_size']) * session['page_size']}})" type="button" class="btn btn-primary btn-xs"><span class="bi bi-skip-end"></span></button>
+</div>
+{% endif %}
+
+<!-- filter dialog -->
+<div class="modal fade modal-lg" id="filter_modal" tabindex="-1" role="dialog" aria-labelledby="filter_modal_label" aria-hidden="true">
+    <form onsubmit="return apply_filter();">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="filter_modal_label">Edit Filters</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="filter_modal_body">
+                {% with filters=filters, session_filters=session['filters'] %}
+                    {% include "analysis/alert_filter_input.html" %}
+                {% endwith %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" onmousedown='new_filter_option()'><span class="bi bi-plus"></span> Add</button>
+                <button type="button" class="btn btn-outline-primary" onmousedown='removeElements("filter_row_")'><span class="bi bi-x"></span> Clear</button>
+                <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-outline-primary">Apply</button>
+            </div>
+        </div>
+    </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/manage_alerts.js') }}?version={{ ACE_VERSION }}"></script>
+{% endblock %}

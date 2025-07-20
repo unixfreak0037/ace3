@@ -1,0 +1,38 @@
+<table class="table table-bordered table-condensed">
+    {% if 'hostname' in analysis_presenter.details %}
+    <tr>
+        <td class="col-md-1">Hostname</td>
+        <td class="col-md-11">{{analysis_presenter.details['hostname']}}</td>
+    </tr>
+    {% endif %}
+    {% if 'domain' in analysis_presenter.details %}
+    <tr>
+        <td class="col-md-1">Domain</td>
+        <td class="col-md-11">{{analysis_presenter.details['domain']}}</td>
+    </tr>
+    {% endif %}
+    {% if 'fqdn' in analysis_presenter.details %}
+    <tr>
+        <td class="col-md-1">FQDN</td>
+        <td class="col-md-11">{{analysis_presenter.details['fqdn']}}</td>
+    </tr>
+    {% endif %}
+    {% if 'mac' in analysis_presenter.details %}
+    <tr>
+        <td class="col-md-1">MAC</td>
+        <td class="col-md-11">{{analysis_presenter.details['mac']}}</td>
+    </tr>
+    {% endif %}
+    {% if 'owner' in analysis_presenter.details %}
+    <tr>
+        <td class="col-md-1">Owner</td>
+        <td class="col-md-11">{{analysis_presenter.details['owner']}}</td>
+    </tr>
+    {% endif %}
+    {% if 'os' in analysis_presenter.details %}
+    <tr>
+        <td class="col-md-1">OS</td>
+        <td class="col-md-11">{{analysis_presenter.details['os']}}</td>
+    </tr>
+    {% endif %}
+</table>

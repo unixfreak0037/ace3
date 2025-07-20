@@ -1,0 +1,40 @@
+<table class="table table-bordered table-condensed">
+    <tr>
+        <th></th>
+        <th><span>Date</span></th>
+        <th><span>(Priority) Alert</span></th>
+        <th><span>Owner</span></th>
+        <th><span>Disposition</span></th>
+        <th><span>Status</span></th>
+    </tr>
+    {% for alert in alerts %}
+    <tr>
+        <td class="event-cell"><label><input type="checkbox" name="detail_{{event.id}}_{{alert.id}}"></input></label></td>
+        <td style="white-space: nowrap;">{{alert.insert_date}}</td>
+        <td>
+            <a target="_blank" href="{{ url_for('analysis.index', direct=alert.uuid) }}">({{alert.priority}}) {{alert.description}}</a>
+            {% for tag in alert_tags[alert.uuid] %}
+              {% if tag.display %}<span class="badge text-bg-{{tag.style}}">{{tag.name}}</span>{% endif %}
+            {% endfor %}
+            {% if alert.remediation_status == 'success' %}
+                <span class="badge text-bg-success" style="cursor:pointer" >remediated</span>
+            {% elif alert.remediation_status == 'failed' %}
+                <span class="badge text-bg-danger" style="cursor:pointer" >remediation failed</span>
+            {% elif alert.remediation_status == 'processing' %}
+                <span class="badge text-bg-warning" style="cursor:pointer" >remediating</span>
+            {% endif %}
+            {% if comments[alert.uuid]|length != 0 %}
+                {% for comment in comments[alert.uuid] %}
+                    <br />
+                    <span style="font-size: x-small;">
+                        ({{ comment.user.gui_display }}) {{ comment.comment }}
+                    </span>
+                {% endfor %}
+            {% endif %}
+        </td>
+        <td>{{alert.owner.gui_display}}</td>
+        <td>{{alert.disposition}}</td>
+        <td>{{alert.status}}</td>
+    </tr>
+    {% endfor %}
+</table>

@@ -1,0 +1,11 @@
+//rule created automatically with intelligence
+rule TEMPLATE_RULE_NAME
+{
+    meta:
+        author = "Indicator Export"
+        file_name = "sub:email.rfc822.headers,email.rfc822.unknown_"
+    strings:
+TEMPLATE_STRINGS
+    condition:
+        any of them
+}

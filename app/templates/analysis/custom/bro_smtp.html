@@ -1,0 +1,30 @@
+{% extends "analysis/alert.html" %}
+{% block alert_details %}
+    {%  if analysis.has_email_analysis %}
+        {% set all_email_analysis = analysis.all_email_analysis %}
+        {% for email_analysis in all_email_analysis %}
+            <ul class="list-group">
+            <li class="list-group-item">MAIL FROM: {{ email_analysis.env_mail_from }}</li>
+            {% if email_analysis.env_rcpt_to %}
+            <li class="list-group-item">RCPT TO: {{ email_analysis.env_rcpt_to | join(', ')}}</li>
+            {% endif %}
+            <li class="list-group-item">From: {{ email_analysis.mail_from  }}</li>
+            <li class="list-group-item">To: {{ email_analysis.mail_to | join(', ')}}</li>
+            <li class="list-group-item">Subject: {{ email_analysis.subject }} </li>
+            {% if email_analysis.decoded_subject %}
+                <li class="list-group-item">Decoded Subject: {{ email_analysis.decoded_subject }} </li>
+            {% endif %}
+        </ul>
+        {% if email_analysis.headers %}
+                <div class="panel panel-default">
+                    <div class="panel-heading">Headers <a role="button" data-toggle="collapse" data-target="#collapse_headers" aria-expanded="true" aria-controls="collapse_headers">(hide/show)</a></div>
+                    <div class="panel-body collapse" id="collapse_headers">
+                        <pre>{{ email_analysis.headers }}</pre>
+                    </div>
+                </div>
+
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+{% endblock %}

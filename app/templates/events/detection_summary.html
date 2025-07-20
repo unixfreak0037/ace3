@@ -1,0 +1,29 @@
+<div class="panel-heading">
+    <h3 class="panel-title" data-toc-text="Detection Summary">Detection Summary <a role="button" data-bs-toggle="collapse" data-bs-target="#collapseDetectionSummary" aria-expanded="true" aria-controls="collapseDetectionSummary">(hide/show)</a></h3>
+</div>
+
+{# Count number of  occurrences of each unique detection #}
+{% set unique_detections = {} %}
+{% for alert in alerts %}
+    {% if alert.all_detection_points %}
+        {% for detection in alert.all_detection_points %}
+            {{ increment(unique_detections, detection.description) }}
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+
+<div class="panel-body collapse show" id="collapseDetectionSummary">
+    {% if unique_detections | length %}
+        <table class="table table-bordered table-condensed">
+
+            {% for detection in unique_detections %}
+                <tr>
+                    <td class="col-md-10">{{ detection }} ({{ unique_detections[detection] }})</td>
+                </tr>
+            {% endfor %}
+
+        </table>
+    {% else %}
+        No detections found.
+    {% endif %}
+</div>

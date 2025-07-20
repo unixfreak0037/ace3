@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+cd ${SAQ_HOME:=/opt/ace} || { echo "unable to cd to $SAQ_HOME"; exit 1; }
+source bin/mysql_common.sh
+
+echo "re-creating unit test database..."
+
+for db in ace amc brocess email-archive
+do
+    echo "creating $db"
+    if $prefix mysql $options -N --batch -e 'show databases' | grep "^$db-unittest\$" > /dev/null 2>&1
+    then
+        echo "dropping $db"
+        $prefix mysqladmin $options drop -f $db-unittest
+        $prefix mysqladmin $options drop -f $db-unittest-2
+    fi
+
+    $prefix mysqladmin $options create $db-unittest
+    $prefix mysqladmin $options create $db-unittest-2
+
+    $prefix mysqldump $options --comments --no-data $db | sed -e 's/\s*AUTO_INCREMENT=[0-9]*\s*/ /g' | $prefix mysql $options --database=$db-unittest
+    $prefix mysqldump $options --comments --no-data $db | sed -e 's/\s*AUTO_INCREMENT=[0-9]*\s*/ /g' | $prefix mysql $options --database=$db-unittest-2
+    $prefix mysql $options -e "ALTER DATABASE \`$db-unittest\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci"
+    $prefix mysql $options -e "ALTER DATABASE \`$db-unittest-2\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci"
+done
+
+if [ -e sql/50-ace-init.sql ]
+then
+    grep -v '^USE' sql/50-ace-init.sql | $prefix mysql $options --database=ace-unittest
+    grep -v '^USE' sql/50-ace-init.sql | $prefix mysql $options --database=ace-unittest-2
+fi
+
+echo "finished re-creating unit test database"

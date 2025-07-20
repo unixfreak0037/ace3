@@ -1,0 +1,8 @@
+{% extends "analysis/default_observable.html" %}
+{% block observable_display_value %}
+{% if ace_config['gui'].getboolean('hide_intel') %}
+    <a>Hidden from public view.</a>
+{% else %}
+   {{_observable.value}}
+{% endif %}
+{% endblock %}

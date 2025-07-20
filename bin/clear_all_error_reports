@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+( cd ${SAQ_HOME:=/opt/ace} && \
+    mv data/error_reports data/error_reports.delete && \
+    mkdir data/error_reports && \
+    rm -rf data/error_reports.delete & )

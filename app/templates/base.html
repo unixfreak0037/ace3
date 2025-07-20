@@ -1,0 +1,582 @@
+{% extends "core.html" %}
+
+{% block head %}
+{{ super() }}
+
+<link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+<!-- jquery -->
+<script src="{{ url_for('static', filename='js/jquery-3.7.1.min.js') }}"></script>
+
+<!-- jqueryUI CSS -->
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/jquery-ui.min.css') }}" />
+
+<!-- daterange picker -->
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/daterangepicker-bs3.css') }}" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/timepicker.css') }}" />
+
+<!-- visualization library -->
+<!--<link href="{{ url_for('static', filename='css/vis.css') }}" rel="stylesheet" type="text/css" />-->
+
+<!-- bootstrap -->
+<!--<script src="{{ url_for('static', filename='js/bootstrap-5.3.5-dist/js/bootstrap.bundle.min.js') }}"></script>-->
+
+<!-- Bootstrap Table of Contents -->
+<!-- <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap-toc.min.css') }}" />
+<script src="{{ url_for('static', filename='js/bootstrap-toc.min.js') }}"></script> -->
+
+<!-- json2 lib (see https://github.com/douglascrockford/JSON-js -->
+<script type="text/javascript" src="{{ url_for('static', filename='js/json2.js') }}"></script>
+
+<!-- jquery ui -->
+<script src="{{ url_for('static', filename='js/jquery-ui.min.js') }}"></script>
+
+<!-- misc libraries -->
+<script type="text/javascript" src="{{ url_for('static', filename='js/jquery.cookie.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='js/moment.js') }}"></script>
+
+<!-- date range picker -->
+<script type="text/javascript" src="{{ url_for('static', filename='js/daterangepicker.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='js/timepicker.js') }}"></script>
+
+<!-- Multiselect dropdown -->
+<!--<script type="text/javascript" src="{{ url_for('static', filename='js/bootstrap-multiselect.js') }}"></script>-->
+
+<!-- vis.js -->
+<!--<script src="{{ url_for('static', filename='js/vis.js') }}"></script>-->
+
+<!-- global ACE javascript code -->
+<script src="{{ url_for('static', filename='js/ace.js') }}?version={{ ACE_VERSION }}"></script>
+<script src="{{ url_for('static', filename='js/remediation.js') }}?version={{ ACE_VERSION }}"></script>
+
+<!-- core css -->
+<!-- this needs to come last so we can do our CSS overrides -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/saq.css') }}" type="text/css">
+
+{% block scripts %}
+{% if config.GOOGLE_ANALYTICS %}
+    {% include "gtag.html" ignore missing %}
+{% endif %}
+
+{% endblock %}
+
+{% endblock %}
+
+{% block body %}
+{# navigation bar #}
+<nav class="navbar navbar-expand-lg bg-body-tertiary mb-3">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('main.index') }}">&spades; ACE3 ({{config.INSTANCE_NAME}})</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                {% if current_user.is_authenticated %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('analysis.file') }}">Analyze</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('analysis.manage') }}">Alerts</a></li>
+                    <!--<li class="nav-item"><a class="nav-link" href="{{ url_for('events.manage') }}">Events</a></li>-->
+                {% endif %}
+            </ul>
+            <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="https://ace-ecosystem.github.io/ACE/"><span class="bi bi-question-octagon"></span></a></li>
+                {% if current_user.is_authenticated %}
+                    {% if config.AUTHENTICATION_ON %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="user-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                {{ current_user.display_name }} ({{ current_user.username }})
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="user-dropdown">
+                                {% if current_user.apikey_decrypted %}
+                                <li><a class="dropdown-item" href="#" onclick="copy_to_clipboard('{{current_user.apikey_decrypted}}'); return false;">Copy API Key</a></li>
+                                {% endif %}
+                                <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}">Change Password</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Logout</a></li>
+                            </ul>
+                        </li>
+                    {% endif %}
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div id="control_panel" class="container-fluid">
+    <div class="row">
+{% block control_panel %}
+{% endblock %}
+    </div>
+</div>
+
+<div id="content_area">
+{% block content %}
+    <div class="container-fluid">
+        {% for message in get_flashed_messages() %}
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            {{ message }}
+        </div>
+        {% endfor %}
+        <div style="margin-top: 10px">
+        {% block page_content %}{% endblock %}
+        </div>
+    </div>
+
+    {% block edit_event_modal %}
+        <div class="modal fade" id="edit_event_modal" tabindex="-1" role="dialog" aria-labelledby="edit_event_modal_label" aria-hidden="true">
+            <div class="modal-dialog">
+                <form id="edit-event-form" class="form-horizontal" role="form" method="POST" action={{url_for('events.edit_event')}}>
+                    <div class="modal-content">
+                        <div class="modal-header" id="edit_event_insert">
+                            <h1 class="modal-title fs-5">Edit Event</h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Nevermind</button>
+                            <button type="submit" class="btn btn-output-primary" id="btn-edit-event">Save</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endblock %}
+
+    {% block event_modal %}
+    <div class="modal fade" id="event_modal" tabindex="-1" role="dialog" aria-labelledby="event_modal_label" aria-hidden="true" style="overflow-y: inherit;">
+        <div class="modal-dialog" style="width: 75%">
+            <form id="event-form" class="form-horizontal" role="form" method="POST" action={{url_for('analysis.add_to_event')}}>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="event_modal_label">Add To Event</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="event-primary-container">
+                          <ul class="nav nav-tabs" id="tabContent">
+                            <li class="active"><a href="#open-events" data-toggle="tab">Open Events</a></li>
+                            <li><a href="#internal-collection-events" data-toggle="tab">Internal Collection Events</a></li>
+                            <li><a href="#closed-events" data-toggle="tab">Closed Events</a></li>
+                          </ul>
+                     <div class="tab-content" id="event-tabs">
+                     <br>
+                      <div class="tab-pane active" id="open-events">
+                        {% if open_events %}
+                            {% for event in open_events %}
+                                <div class="radio" id="event_container_div_{{event.id}}"><label><input type="radio" name="event" value="{{event.id}}" id="option_{{event.id}}" onclick="toggleNewEventDialog();showEventSaveButton()"><span id="event_match_{{event.id}}"></span>{{event.creation_date}} - {{event.type.value}} - {{event.vector.value}} - {{event.name}}</label></div>
+                            {% endfor %}
+                        {% else %}
+                            No open events.
+                        {% endif %}
+                      </div>
+                      <div class="tab-pane" id="internal-collection-events">
+                        {% if internal_collection_events %}
+                            {% for event in internal_collection_events %}
+                                <div class="radio" id="event_container_div_{{event.id}}"><label><input type="radio" name="event" value="{{event.id}}" id="option_{{event.id}}" onclick="toggleNewEventDialog();showEventSaveButton()"><span id="event_match_{{event.id}}"></span>{{event.creation_date}} - {{event.type.value}} - {{event.vector.value}} - {{event.name}}</label></div>
+                            {% endfor %}
+                        {% else %}
+                            No internal collection events.
+                        {% endif %}
+                      </div>
+                      <div class="tab-pane" id="closed-events">
+                        {% if closed_events %}
+                            {% for event in closed_events %}
+                                <div class="radio" id="event_container_div_{{event.id}}"><label><input type="radio" name="event" value="{{event.id}}" id="option_{{event.id}}" onclick="toggleNewEventDialog();showEventSaveButton()"><span id="event_match_{{event.id}}"></span>{{event.creation_date}} - {{event.type.value}} - {{event.vector.value}} - {{event.name}}</label></div>
+                            {% endfor %}
+                            {% if not end_of_list %}
+                                <button type="button" class="btn btn-link" id="load-more-events-btn" onclick="loadMoreClosedEvents()">Show more...</button>
+                            {% endif %}
+                        {% else %}
+                          No closed events.
+                        {% endif %}
+                      </div>
+                     </div>
+                <br>
+                    <div class="radio modal-body" id="event-secondary-container">
+                        <label><input type="radio" name="event" value="NEW" id="option_NEW" onclick="toggleNewEventDialog();showEventSaveButton();autofill_event_name()"> New Event </label>
+                        <div id="new_event_dialog" style="display:none;">
+                            <table style="width:100%;table-layout:auto;">
+                              <tr><th>Name</th>
+                                  <td><textarea class="form-control" type="text" id="event_name" name="event_name" value="" rows="2" style="height: 80px;resize: vertical"></textarea></td>
+                                  <td style="text-align: center"><button title="Reset Event Name" onclick="autofill_event_name()" type="button" class="bi bi-arrow-clockwise"></button></td>
+                              </tr>
+                              <tr><th>Comment</th>
+                                  <td><textarea class="form-control" type="text" id="event_comment" name="event_comment" style="resize: vertical"></textarea>
+                                  </td>
+                              </tr>
+                            </table>
+                            <select class="form-control" name="event_disposition" id="event_disposition" style="display:none;">
+                                {% for disposition in dispositions %}
+                                    <option value="{{disposition}}">{{disposition}}</option>
+                                {% endfor %}
+                            </select>
+                            <input class="form-control" style="display:none" type="text" id="event_time" name="event_time" placeholder="None"/>
+                            <input class="form-control" style="display:none" type="text" id="alert_time" name="alert_time" placeholder="None"/>
+                            <input class="form-control" style="display:none" type="text" id="ownership_time" name="ownership_time" placeholder="None"/>
+                            <input class="form-control" style="display:none" type="text" id="disposition_time" name="disposition_time" placeholder="None"/>
+                            <input class="form-control" style="display:none" type="text" id="contain_time" name="contain_time" placeholder="None"/>
+                            <input class="form-control" style="display:none" type="text" id="remediation_time" name="remediation_time" placeholder="None"/>
+                            <br>
+                        </div>
+                    </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Nevermind</button>
+                        <button type="submit" class="btn btn-outline-primary" id="btn-add-to-event" style="display:none;">Save</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endblock event_modal %}
+
+    {% block remove_alerts_form %}
+        <form id="remove-alerts-form" action="{{url_for('events.remove_alerts')}}" method="POST"></form>
+    {% endblock %}
+
+    {% block disposition_modal %}
+    <div class="modal fade" id="disposition_modal" tabindex="-1" role="dialog" aria-labelledby="disposition_modal_label" aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="disposition-form" class="form-horizontal" role="form" method="POST" action={{url_for('analysis.set_disposition')}}>
+            {% block disposition_form %}{% endblock disposition_form %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="disposition_modal_label">Set Disposition</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            {% for disposition in dispositions %}
+                                <div class="form-check">
+                                    <input
+                                        type="radio"
+                                        class="form-check-input"
+                                        id="option_{{disposition}}"
+                                        name="disposition"
+                                        value="{{disposition}}"
+                                        autocomplete="off"
+                                        {% if dispositions[disposition]['show_save_to_event'] %}
+                                            onclick="showSaveToEventButton();"
+                                        {% else %}
+                                            onclick="hideSaveToEventButton();"
+                                        {% endif %}
+                                    />
+                                    <label class="form-check-label label-{{dispositions[disposition]['css']}}" for="option_{{disposition}}">
+                                        <span class="badge text-bg-{{dispositions[disposition]['css']}}"> {{disposition}} </span>
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-8">
+                            <textarea class="form-control" rows="4" name="comment"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Nevermind</button>
+                    <button type="submit" class="btn btn-outline-primary" id="btn-disposition">Save</button>
+                    <button type="button" class="btn btn-outline-primary" id="btn-disposition-and-remediate" data-dismiss="modal">Save and Remediate</button>
+                    <button type="button" class="btn btn-outline-primary" id="btn-save-to-event" style="display:none;" data-toggle="modal" data-dismiss="modal" data-target="#event_modal">Save To Event</button>
+                </div>
+            </div>
+            </form>
+        </div>
+    </div>
+    {% endblock disposition_modal %}
+
+    {% block comment_modal %}
+    <div class="modal fade" id="comment_modal" tabindex="-1" role="dialog" aria-labelledby="comment_modal_label" aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="comment-form" class="form-horizontal" role="form" method="POST" action={{url_for('analysis.add_comment')}}>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="comment_modal_label">Add Comment</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <textarea class="form-control" rows="3" id="comment" name="comment"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-black" data-bs-dismiss="modal">Doh</button>
+                    <button type="button" class="btn btn-outline-primary" id="btn-submit-comment">Sweet</button>
+                </div>
+            </div>
+            </form>
+        </div>
+    </div>
+    {% endblock comment_modal %}
+
+    {% block tag_modal %}
+    <div class="modal fade" id="tag_modal" tabindex="-1" role="dialog" aria-labelledby="tag_modal_label" aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="tag-form" class="form-horizontal" role="form" method="POST" action={{url_for('analysis.add_tag')}}>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="tag_modal_label">Add Tag(s)</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    Enter one or more tags separated by spaces.
+                    <input class="form-control" type="text" id="tag" name="tag"></input>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Nah</button>
+                    <button type="button" class="btn btn-outline-primary" id="btn-submit-tags">Alright</button>
+                </div>
+            </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="tag_remove_modal" tabindex="-1" role="dialog" aria-labelledby="tag_modal_label" aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="tag-remove-form" class="form-horizontal" role="form" method="POST" action={{url_for('analysis.remove_tag')}}>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="tag_remove_modal_label">Remove Tag(s)</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    Enter one or more tags separated by spaces.
+                    <input class="form-control" type="text" id="tag" name="tag"></input>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-default" data-bs-dismiss="modal">Nah</button>
+                    <button type="button" class="btn btn-outline-primary" id="btn-submit-tags-remove">Alright</button>
+                </div>
+            </div>
+            </form>
+        </div>
+    </div>
+    {% endblock tag_modal %}
+</div>
+
+{% endblock content %}
+
+
+<div class="modal fade" id="search_modal" tabindex="-1" role="dialog" aria-labelledby="search_modal_label" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="form-horizontal" role="form" method="POST" action={{url_for('analysis.index')}}>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title" id="search_modal_label">Search ACE</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Nevermind</button>
+                <button type="submit" class="btn btn-outline-primary">Search</button>
+            </div>
+        </div>
+        </form>
+    </div>
+</div>
+
+<!-- assign ownership dialog -->
+<div class="modal fade" id="assign_ownership_modal" tabindex="-1" role="dialog" aria-labelledby="assign_ownership_modal_label" aria-hidden="true">
+    <form id="assign-ownership-form" method="POST" action="{{url_for('analysis.assign_ownership')}}">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="assign_ownership_modal_label">Assign Ownership</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col">
+                        <select name="selected_user_id" class="form-control">
+                            {% for user in all_users | sort(attribute='gui_display') %}
+                                {% if user.enabled %}
+                                    <option value="{{user.id}}">{{user.gui_display}}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-black" data-bs-dismiss="modal">Nevermind</button>
+                <button type="submit" class="btn btn-outline-primary" id="btn-assign-ownership">Assign</button>
+            </div>
+        </div>
+    </div>
+    </form>
+</div>
+
+<!-- remediation selection dialog -->
+<div class="modal fade" id="remediation-selection-modal" tabindex="-1" role="dialog" aria-labelledby="remediation-selection-label" aria-hidden="true">
+    <form onsubmit="return remove_remediation_targets();">
+    <div class="modal-dialog modal-lg" style="width: 95%">
+        <div class="modal-content" style="word-break: break-word">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5">Remediation Selection</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="remediation-selection-body" style="word-wrap: break-word">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-outline-primary" onclick="stop_remediation()">Stop</button>
+                <button type="button" class="btn btn-outline-primary" onclick="restore_remediation_targets()">Restore</button>
+                <button type="submit" class="btn btn-outline-primary">Remove</button>
+                <button type="button" class="btn btn-outline-primary" onclick="delete_remediation()">Delete</button>
+            </div>
+        </div>
+    </div>
+    </form>
+</div>
+
+<div class="modal fade" id="remediation-modal" tabindex="-1" role="dialog" aria-labelledby="remediation-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg" style="width: 95%">
+        <div class="modal-content" style="word-break: break-word">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5">Remediation</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="remediation-body" style="word-wrap: break-word">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- "Send to" modal -->
+<div class="modal fade" id="send-to-modal" tabindex="-1" role="dialog" aria-labelledby="send_to_modal_label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="send-to-modal-label">Send To</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="send-to-body">
+                <!-- Host selections -->
+                <p>Please select a host to send this file to.</p>
+
+                <select name="selected-host" id="selected-host" class="form-control">
+                    {% for host in send_to_hosts %}
+                    <option value="{{ host.hostname }}">host: {{ host.hostname }} path: {{ host.remote_path }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-default" data-bs-dismiss="modal" aria-hidden="true">Cancel</button>
+                <button type="button" class="btn btn-outline-primary" id="btn-send-to-send">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- "Send alert to" modal -->
+<div class="modal fade" id="send-alert-to-modal" tabindex="-1" role="dialog" aria-labelledby="send_alert_to_modal_label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title" id="send-alert-to-modal-label">Send Alert To</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="send-alert-to-body">
+                <!-- Host selections -->
+                <p>Please select a host to send this alert to.</p>
+
+                <select name="alert-selected-host" id="alert-selected-host" class="form-control">
+                    {% for host in send_to_hosts %}
+                    <option value="{{ host.hostname }}">host: {{ host.hostname }} path: {{ host.remote_path }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-default" data-bs-dismiss="modal" aria-hidden="true">Cancel</button>
+                <button type="button" class="btn btn-outline-primary" id="btn-send-alert-to-send">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- "Send event to" modal -->
+<div class="modal fade" id="send-event-to-modal" tabindex="-1" role="dialog" aria-labelledby="send_event_to_modal_label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="send-event-to-modal-label">Send Event To</h1>
+                <button type="button" class="btn-close" data-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="send-event-to-body">
+                <!-- Host selections -->
+                <p>Please select a host to send this event to.</p>
+
+                <select name="event-selected-host" id="event-selected-host" class="form-control">
+                    {% for host in send_to_hosts %}
+                    <option value="{{ host.hostname }}">host: {{ host.hostname }} path: {{ host.remote_path }}/events/</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-dark" data-bs-dismiss="modal" aria-hidden="true">Cancel</button>
+                <button type="button" class="btn btn-outline-primary" id="btn-send-event-to-send">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block event_tag_modal %}
+<div class="modal fade" id="event_tag_modal" tabindex="-1" role="dialog" aria-labelledby="tag_modal_label" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="event-tag-form" class="form-horizontal" role="form" method="POST" action={{url_for('events.add_tag')}}>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title fs-5" id="tag_modal_label">Add Tag(s)</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Enter one or more tags separated by spaces.
+                <input class="form-control" type="text" id="event-tag" name="tag">
+                <input type="text" name="current-page" id="current-page" value="" style="display: none"/>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Nah</button>
+                <button type="button" class="btn btn-outline-primary" id="btn-submit-event-tags">Alright</button>
+            </div>
+        </div>
+        </form>
+    </div>
+</div>
+{% endblock event_tag_modal %}
+
+{% block alert_ownership_changed_modal %}
+<div class="modal fade" id="alert_ownership_changed_modal" tabindex="-1" role="dialog" aria-labelledby="alert_ownership_changed_modal_label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="alert_ownership_changed_modal_label">Alert Ownership Changed!</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <b><span id="alert_thief"></span></b> just took ownership of this alert.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-dark" data-bsdismiss="modal">¯\_(ツ)_/¯</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock alert_ownership_changed_modal %}
+
+<!-- datastore to pass data to the modal -->
+<script type="text/javascript">
+var sendToDatastore = sendToDatastore ? sendToDatastore : {};
+</script>
+
+{% endblock body %}
+
+{# Counter macro for loop-style counting, credit: https://stackoverflow.com/a/45643011 #}
+{% macro increment(dct, key, inc=1)%}
+    {% if key in dct %}
+        {% if dct.update({key: dct[key] + inc}) %} {% endif %}
+    {% else %}
+        {% if dct.update({key: inc}) %} {% endif %}
+    {% endif %}
+{% endmacro %}

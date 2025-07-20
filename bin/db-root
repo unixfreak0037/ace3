@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+mysql --defaults-file=/docker-entrypoint-initdb.d/mysql_defaults.root --database=ace

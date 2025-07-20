@@ -1,0 +1,303 @@
+x-common-env: &common-env
+    ACE_TARGET: "dev"
+    ACE_VERSION:
+    ACE_DISABLE_AUTOSTART:
+    SAQ_ENC:
+    SAQ_CONFIG_PATHS: "etc/saq.dev.ini"
+
+x-common-volumes: &common-volumes
+    - .:/opt/ace
+    - ace-data-dev:/opt/ace/data
+    - ace-sql-dev:/docker-entrypoint-initdb.d
+    - ace-yara-dev:/opt/ace/etc/yara
+    - ace-hunt-dev:/opt/ace/hunts
+    - ace-misc-dev:/opt/misc
+    - ace-ssl-dev:/opt/ace/ssl
+
+services:
+    # ensures file permissions on named volumes are correct
+    ace-root-volume-initialize:
+        environment: *common-env
+        user: root
+        build:
+            context: .
+            args:
+                SAQ_USER_ID: ${UID:-1000}
+                SAQ_GROUP_ID: ${GID:-1000}
+        image: "ace-dev:${ACE_VERSION:-latest}"
+        command: /bin/bash -c "/opt/ace/docker/startup/initialize_volumes.sh"
+        volumes:
+            - ace-data-dev:/opt/ace/data
+            - ace-sql-dev:/docker-entrypoint-initdb.d
+            - ace-ssl-dev:/opt/ace/ssl
+            - ace-misc-dev:/opt/misc
+        cap_add:
+            - SYS_PTRACE
+        networks: 
+            - dev
+
+    # performs all first-time initialization routines that do not require the db
+    ace-initialize:
+        environment: *common-env
+        image: "ace-dev:${ACE_VERSION:-latest}"
+        command: /bin/bash -c "/opt/ace/docker/startup/initialize.sh"
+        depends_on:
+            ace-root-volume-initialize:
+                condition: service_completed_successfully
+        volumes: *common-volumes
+        cap_add:
+            - SYS_PTRACE
+        networks: 
+            - dev
+
+    ace-db:
+        image: mysql:9.2
+        command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_520_ci --max-allowed-packet=1073741824
+        healthcheck:
+            test: ["CMD", "mysql", "--defaults-file=/docker-entrypoint-initdb.d/mysql_defaults", "-e", "use ace;"]
+            interval: 3s
+            retries: 5
+            start_period: 30s
+            timeout: 10s
+        restart: always
+        depends_on:
+            ace-initialize:
+                condition: service_completed_successfully
+        environment:
+            MYSQL_RANDOM_ROOT_PASSWORD: 1
+        volumes:
+            - ace-db-dev:/var/lib/mysql
+            - ace-sql-dev:/docker-entrypoint-initdb.d
+            - ace-data-dev:/opt/ace/data
+            - ./etc/mysqld/conf.d:/etc/mysql/conf.d
+            - ace-ssl-dev:/opt/ace/ssl
+        ports:
+            - "3306:3306"
+        hostname: ace-db
+        networks: 
+            - dev
+
+    # performs all first-time initialization routines that require the db
+    ace-setup:
+        environment: *common-env
+        image: "ace-dev:${ACE_VERSION:-latest}"
+        command: /bin/bash -c "/opt/ace/docker/startup/setup.sh"
+        depends_on:
+            ace-db:
+                condition: service_healthy
+        volumes: *common-volumes
+        cap_add:
+            - SYS_PTRACE
+        networks: 
+            - dev
+
+    http:
+        build: 
+            context: .
+            dockerfile: Dockerfile.ace-http
+        image: "ace-http:${ACE_VERSION:-latest}"
+        restart: always
+        depends_on:
+            - ace
+        volumes: *common-volumes
+        hostname: ace-http
+        ports:
+            - "8443:443"
+        networks: 
+            - dev
+
+    http-app:
+        environment: *common-env
+        image: "ace-dev:${ACE_VERSION:-latest}"
+        depends_on:
+            - ace
+        command: /bin/bash -c "/opt/ace/docker/startup/start_uwsgi_app.sh"
+        restart: always
+        volumes: *common-volumes
+        hostname: ace
+        expose:
+            - "3030"
+        cap_add:
+            - SYS_PTRACE
+        networks: 
+            - dev
+
+    http-api:
+        environment: *common-env
+        image: "ace-dev:${ACE_VERSION:-latest}"
+        depends_on:
+            - ace
+        command: /bin/bash -c "/opt/ace/docker/startup/start_uwsgi_api.sh"
+        restart: always
+        volumes: *common-volumes
+        hostname: ace
+        expose:
+            - "3031"
+        cap_add:
+            - SYS_PTRACE
+        networks: 
+            - dev
+
+    redis:
+        image: redis:6.2.4
+        ports:
+            - "6379:6379"
+        restart: always
+        hostname: ace-redis
+        networks: 
+            - dev
+
+    http-debug:
+        environment: *common-env
+        image: "ace-dev:${ACE_VERSION:-latest}"
+        depends_on:
+            - ace
+        command: /bin/bash -c "/opt/ace/docker/startup/start_debug_gui.sh"
+        restart: always
+        volumes: *common-volumes
+        hostname: ace-http-debug
+        ports:
+            - "5000:5000"
+        cap_add:
+            - SYS_PTRACE
+        networks: 
+            - dev
+
+    network-semaphore:
+        environment: *common-env
+        image: "ace-dev:${ACE_VERSION:-latest}"
+        depends_on:
+            ace-setup:
+                condition: service_completed_successfully
+        command: /bin/bash -c "/opt/ace/docker/startup/start_network_semaphore.sh"
+        restart: always
+        volumes: *common-volumes
+        hostname: ace
+        cap_add:
+            - SYS_PTRACE
+        ports:
+            - "53559:53559"
+        networks: 
+            - dev
+
+    cron:
+        environment: 
+            <<: *common-env
+            ACE_ZIP_PASSWORD:
+        depends_on:
+            - ace
+        image: "ace-dev:${ACE_VERSION:-latest}"
+        command: /bin/bash -c "/opt/ace/docker/startup/start_yacron.sh"
+        volumes: *common-volumes
+        hostname: ace
+        cap_add:
+            - SYS_PTRACE
+        networks: 
+            - dev
+
+    yara:
+        environment: *common-env
+        image: "ace-dev:${ACE_VERSION:-latest}"
+        depends_on:
+            ace-setup:
+                condition: service_completed_successfully
+        command: /bin/bash -c "/opt/ace/docker/startup/start_yara.sh"
+        restart: always
+        volumes: *common-volumes
+        hostname: ace
+        cap_add:
+            - SYS_PTRACE
+        networks: 
+            - dev
+
+    background-executor:
+        environment: *common-env
+        image: "ace-dev:${ACE_VERSION:-latest}"
+        depends_on:
+            ace:
+                condition: service_started
+            redis:
+                condition: service_started
+        command: /bin/bash -c "/opt/ace/docker/startup/start_background_executor.sh"
+        restart: always
+        volumes: *common-volumes
+        hostname: ace
+        cap_add:
+            - SYS_PTRACE
+        networks: 
+            - dev
+
+    dev:
+        environment: 
+            <<: *common-env
+            ACE_ZIP_PASSWORD:
+            ACE_LOAD_PROD_DATA:
+            ACE_PROD_DB_HOST:
+            ACE_PROD_DB_USER:
+            ACE_PROD_DB_PASSWORD:
+            AWS_CA_BUNDLE:
+            AWS_ACCESS_KEY_ID:
+            AWS_SECRET_ACCESS_KEY:
+            AWS_DEFAULT_REGION:
+        image: "ace-dev:${ACE_VERSION:-latest}"
+        depends_on:
+            ace-setup:
+                condition: service_completed_successfully
+        command: /bin/bash -c "/opt/ace/docker/startup/start_nothing.sh"
+        restart: always
+        volumes: *common-volumes
+        hostname: ace
+        cap_add:
+            - SYS_PTRACE
+        ports:
+            - "5001:5000"
+        networks: 
+            - dev
+
+    ace:
+        environment: 
+            <<: *common-env
+            ACE_ZIP_PASSWORD:
+            ACE_LOAD_PROD_DATA:
+            ACE_PROD_DB_HOST:
+            ACE_PROD_DB_USER:
+            ACE_PROD_DB_PASSWORD:
+            AWS_CA_BUNDLE:
+            AWS_ACCESS_KEY_ID:
+            AWS_SECRET_ACCESS_KEY:
+            AWS_DEFAULT_REGION:
+        image: "ace-dev:${ACE_VERSION:-latest}"
+        depends_on:
+            ace-setup:
+                condition: service_completed_successfully
+            yara:
+                condition: service_started
+            network-semaphore:
+                condition: service_started
+        command: /bin/bash -c "/opt/ace/docker/startup/start_engine.sh"
+        restart: always
+        volumes: *common-volumes
+        hostname: ace
+        cap_add:
+            - SYS_PTRACE
+        networks: 
+            - dev
+
+volumes:
+    ace-data-dev:
+        name: ace-data-dev
+    ace-db-dev:
+        name: ace-db-dev
+    ace-sql-dev:
+        name: ace-sql-dev
+    ace-ssl-dev:
+        name: ace-ssl-dev
+    ace-yara-dev:
+        name: ace-yara-dev
+    ace-hunt-dev:
+        name: ace-hunt-dev
+    ace-misc-dev:
+        name: ace-misc-dev
+        
+networks:
+    dev:

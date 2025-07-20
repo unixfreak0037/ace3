@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block page_content %}
+<div class="card">
+    <div class="card-header">
+        <h1>Manual Analysis</h1>
+    </div>
+    <div class="card-body">
+        <div class="card-text">
+            {% block tab_content %}{% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}

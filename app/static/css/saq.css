@@ -1,0 +1,505 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+th {
+    white-space: nowrap;
+}
+
+#flex_wrapper {
+    display: flex; 
+    min-height: 100%;
+    height: 100vh;
+    flex-direction: column;
+}
+
+#navbar {
+    width: 100%;
+}
+
+#control_panel {
+    width: 100%;
+}
+
+#content_area {
+    overflow: scroll; 
+    flex: 1;
+}
+
+.link:hover {
+    text-decoration: underline;
+    text-shadow: 1px 1px 1px #555;
+}
+
+.voffset5 { margin-top : 5px; }
+.voffset10 { margin-top : 10px; }
+
+/* observable type highlights */
+
+.observable_display {
+    cursor: pointer;
+    font-weight: bold;
+    text-shadow: 1px 1px 1px lightgray;
+}
+
+.observable_display:hover {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.observable-preview {
+    font-family: monospace;
+    white-space: pre;
+    font-size: smaller;
+}
+
+/* user-related (blue) */
+.user {
+    color: #0000ff; 
+}
+
+.o365_group {
+    color: #4d4dff;
+}
+
+.email_address {
+    color: #8888ff; 
+}
+
+.contact {
+    color: #8888ff; 
+}
+
+/* ipv4-related (cyan) */
+
+.ipv4 {
+    color: #005050;
+}
+
+.ipv4_conversation {
+    color: #006060;
+}
+
+.asset {
+    color: #008080;
+}
+
+/* dns related */
+
+.fqdn {
+    color: #cc8500;
+}
+
+.hostname {
+    color: #805300;
+}
+
+.falcon_host_id {
+    color: #805300;
+}
+
+.printer {
+    color: #FF7433;
+}
+
+/* file related */
+
+.file {
+    color: #ff0000;
+}
+
+.email_subject {
+    color: #51a895;
+}
+
+.file_path {
+    color: #b30000;
+}
+
+.file_name {
+    color: #660000;
+}
+
+.sharepoint_file {
+    color: #ff0000;
+}
+
+.o365_file {
+    color: #ff0000;
+}
+
+/* others */
+
+.yara_rule {
+    color: #008000;
+}
+
+.indicator {
+    color: #337AB7;
+}
+
+
+.url {
+    color: #808000;
+}
+
+/* non-colored */
+
+.md5, .sha1, .sha256, .snort_sig {
+    color: #000000;
+}
+
+/* custom labels */
+.label-interesting {
+    background-color : #ffffe6;
+    color : black;
+}
+
+.label-special {
+    background-color : #ffffff;
+    color : gray;
+    border : 1px solid black;
+}
+
+.sim-table {
+    display:table;
+    width:auto;
+}
+
+.sim-table-row {
+    display:table-row;
+    width:auto;
+    clear:both;
+}
+
+.sim-table-column {
+    float:left;
+    display:table-column;
+    width:auto;
+    font-size:x-small;
+    padding-right:5px;
+}
+
+.event-cell {
+    width:1%;
+    white-space:nowrap;
+}
+
+/* from https://codepen.io/uimax/pen/ZpENPG */
+
+.label.label-outlined {
+  border-width: 1px;
+  border-style: solid;
+  background-color: transparent
+}
+
+.label.label-outlined.label-default {
+  border-color: #B0BEC5;
+  color: #B0BEC5
+}
+
+.label.label-outlined.label-primary {
+  border-color: #2196F3;
+  color: #2196F3
+}
+
+.label.label-outlined.label-secondary {
+  border-color: #323a45;
+  color: #323a45
+}
+
+.label.label-outlined.label-info {
+  border-color: #29B6F6;
+  color: #29B6F6
+}
+
+.label.label-outlined.label-success {
+  border-color: #64DD17;
+  color: #64DD17
+}
+
+.label.label-outlined.label-warning {
+  border-color: #FFD600;
+  color: #FFD600
+}
+
+.label.label-outlined.label-danger {
+  border-color: #ef1c1c;
+  color: #ef1c1c
+}
+
+.raw-log {
+  font-family : monospace;
+  font-size : smaller;
+}
+
+.pre {
+  white-space: pre;
+}
+
+ul.tree, ul.tree ul {
+list-style: none;
+ margin: 0;
+ padding: 0;
+}
+ul.tree ul {
+ margin-left: 10px;
+}
+ul.tree li {
+ margin: 0;
+ padding: 0 7px;
+ line-height: 20px;
+ border-left:1px solid rgb(100,100,100);
+
+}
+ul.tree li:last-child {
+   border-left:none;
+}
+ul.tree li:before {
+  position:relative;
+  top:-0.3em;
+  height:1em;
+  width:12px;
+  color:white;
+  border-bottom:1px solid rgb(100,100,100);
+  content:"";
+  display:inline-block;
+  left:-7px;
+}
+ul.tree li:last-child:before {
+  border-left:1px solid rgb(100,100,100);
+}
+
+table.cert-table {
+  border-collapse: collapse;
+  color: #222222;
+  font: 10pt Roboto, sans-serif;
+  margin-left: auto;
+  margin-right: auto
+}
+table.cert-options {
+  border: none;
+  margin-left: 10px
+}
+td.cert-td, th.cert-th {
+  border: 1px solid #CCCCCC;
+  padding: 0px 2px;
+  text-align: left;
+  vertical-align: top
+}
+td.cert-outer, th.cert-outer {
+  border: 1px solid #CCCCCC;
+  padding: 2px 20px;
+  text-align: left
+}
+td.cert-text {
+  font: 10pt monospace, monospace, sans-serif;
+  padding: 2px 20px
+}
+th.domain-history-table {
+    position: sticky;
+    top: 0;
+    background-color: #FFFFFF;
+}
+
+.saq-analysis-li {
+  list-style-type: none;
+}
+
+.toggle-icon {
+  padding: 2px;
+  top: 2px;
+  cursor: pointer;
+}
+
+.saq-analysis-bullet {
+  /*float: left;*/
+  width: 19px;
+  padding-left: 7px;
+}
+
+.max-hit-observable {
+    display: none;
+}
+
+.tl_date {
+    background-color:#dce9f5;
+    border-style: none none solid none;
+    border-width: 1px;
+    border-color: #515151;
+    margin-top: 12px;
+    padding: 3px 3px 3px 3px;
+    width: 100%;
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.tl_event {
+    border-style: none none solid none;
+    border-width: 1px;
+    border-color: #d1d1d1;
+    display: flex;
+    padding: 3px;
+    width: 100%;
+}
+
+.tl_expand_button {
+    cursor: pointer;
+}
+
+.tl_icon {
+    width: 18px;
+    height: 18px;
+    margin-left: 8px;
+    margin-right: 5px;
+}
+
+.tl_time {
+    width: 40px;
+    margin-right: 30px;
+    text-align: right;
+    font-weight: 500;
+}
+
+.tl_details {
+    flex: 1;
+    border-style: none none none solid;
+    border-width: 1px;
+    border-color: #d1d1d1;
+    padding-left: 5px;
+}
+
+.tl_fields {
+    width: 100%;
+    padding-bottom: 5px;
+}
+
+.tl_analysis {
+    display: none;
+    width: 100%;
+    padding-top: 8px;
+    border-style: solid none none none;
+    border-width: 1px;
+    border-color: #d1d1d1;
+}
+
+span.multiselect-native-select {
+	position: relative
+}
+span.multiselect-native-select select {
+	border: 0!important;
+	clip: rect(0 0 0 0)!important;
+	height: 1px!important;
+	margin: -1px -1px -1px -3px!important;
+	overflow: hidden!important;
+	padding: 0!important;
+	position: absolute!important;
+	width: 1px!important;
+	left: 50%;
+	top: 30px
+}
+.multiselect-container {
+	position: absolute;
+	list-style-type: none;
+	margin: 0;
+	padding: 0;
+    overflow: scroll;
+}
+.multiselect-container .input-group {
+	margin: 5px
+}
+.multiselect-container>li {
+	padding: 0
+}
+.multiselect-container>li>a.multiselect-all label {
+	font-weight: 700
+}
+.multiselect-container>li.multiselect-group label {
+	margin: 0;
+	padding: 3px 20px 3px 20px;
+	height: 100%;
+	font-weight: 700
+}
+.multiselect-container>li.multiselect-group-clickable label {
+	cursor: pointer
+}
+.multiselect-container>li>a {
+	padding: 0
+}
+.multiselect-container>li>a>label {
+	margin: 0;
+	height: 100%;
+	cursor: pointer;
+	font-weight: 400;
+	padding: 3px 0 3px 30px
+}
+.multiselect-container>li>a>label.radio, .multiselect-container>li>a>label.checkbox {
+	margin: 0
+}
+.multiselect-container>li>a>label>input[type=checkbox] {
+	margin-bottom: 5px
+}
+.btn-group>.btn-group:nth-child(2)>.multiselect.btn {
+	border-top-left-radius: 4px;
+	border-bottom-left-radius: 4px
+}
+.form-inline .multiselect-container label.checkbox, .form-inline .multiselect-container label.radio {
+	padding: 3px 20px 3px 40px
+}
+.form-inline .multiselect-container li a label.checkbox input[type=checkbox], .form-inline .multiselect-container li a label.radio input[type=radio] {
+	margin-left: -20px;
+	margin-right: 0
+}
+
+.tab-header {
+    margin: 0px;
+    padding: 0px 1px 0px 0px;
+    display: flex;
+    flex-direction: row;
+    border-bottom: 0px none transparent;
+    font-size: large;
+    font-weight: bold;
+}
+.tab-header div {
+	border-top-left-radius: 4px;
+    border-width: 1px;
+    border-style: none solid none none;
+    border-color: #ddd;
+    padding: 5px 15px 5px 15px;
+    cursor: pointer;
+}
+.tab-header div.tab-selected {
+    background-color : #fff;
+    cursor: default;
+}
+
+/* emulate the -xs from bs3 */
+.btn-group-xs > .btn, .btn-xs {
+    padding  : .25rem .4rem;
+    font-size  : .875rem;
+    line-height  : .5;
+    border-radius : .2rem;
+}
+
+/* Bootstrap TOC styles */
+nav[data-toggle="toc"] {
+  top: 42px;
+}
+
+/* small screens */
+@media (max-width: 768px) {
+  /* override stickyness so that the navigation does not follow scrolling */
+  nav[data-toggle="toc"] {
+    margin-bottom: 42px;
+    position: static;
+  }
+
+  /* don't expand nested items, which pushes down the rest of the page when navigating */
+  nav[data-toggle="toc"] .nav .active .nav {
+    display: none;
+  }
+}
