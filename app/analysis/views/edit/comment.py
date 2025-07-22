@@ -65,7 +65,11 @@ def delete_comment():
         return redirect(url_for('analysis.index'))
 
     # XXX use delete() instead of select then delete
-    comment = get_db().query(Comment).filter(Comment.comment_id == comment_id).one()
+    comment = get_db().query(Comment).filter(Comment.comment_id == comment_id).one_or_none()
+    if comment is None:
+        flash("comment not found")
+        return redirect(url_for('analysis.index'))
+
     if comment.user.id != current_user.id:
         flash("invalid user for this comment")
         return redirect(url_for('analysis.index'))

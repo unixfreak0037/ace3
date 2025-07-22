@@ -4,7 +4,7 @@
         $.post("{{ url_for('analysis.observable_action_set_for_detection') }}",
                 { "alert_uuid": "{{alert.uuid}}", "observable_uuid":"{{_observable.id}}", "action_id": "{{action.name}}"},
                 function(data) {
-                    window.location = '{{url_for('analysis.index', direct=_observable.root.uuid)}}';
+                    window.location = '{{url_for('analysis.index', direct=alert.uuid)}}';
                 }
         ).fail(function(data, textStatus, jqXHR) {
             alert(data);

@@ -1956,32 +1956,6 @@ Owner = aliased(User)
 DispositionBy = aliased(User)
 RemediatedBy = aliased(User)
 
-class UserAlertMetrics(Base):
-    
-    __tablename__ = 'user_alert_metrics'
-
-    alert_id = Column(
-        Integer,
-        ForeignKey('alerts.id'),
-        primary_key=True)
-
-    user_id = Column(
-        Integer,
-        ForeignKey('users.id'),
-        primary_key=True)
-
-    start_time = Column(
-        TIMESTAMP, 
-        nullable=False, 
-        server_default=text('CURRENT_TIMESTAMP'))
-
-    disposition_time = Column(
-        TIMESTAMP, 
-        nullable=True)
-
-    alert = relationship('Alert', backref='user_alert_metrics')
-    user = relationship('User', backref='user_alert_metrics')
-
 class Comment(Base):
 
     __tablename__ = 'comments'

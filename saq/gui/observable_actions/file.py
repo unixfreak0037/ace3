@@ -7,7 +7,7 @@ class ObservableActionDownloadFile(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_FILE_DOWNLOAD
         self.description = "Download File"
-        self.jinja_action_path = 'analysis/observable_actions/download_file.html'
+        self.action_path = 'analysis/observable_actions/download_file.html'
         self.icon = 'download-alt'
 
 class ObservableActionDownloadFileAsZip(ObservableAction):
@@ -15,7 +15,7 @@ class ObservableActionDownloadFileAsZip(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_FILE_DOWNLOAD_AS_ZIP
         self.description = "Download File As ZIP"
-        self.jinja_action_path = 'analysis/observable_actions/download_file_as_zip.html'
+        self.action_path = 'analysis/observable_actions/download_file_as_zip.html'
         self.icon = 'download-alt'
 
 class ObservableActionViewAsHex(ObservableAction):
@@ -23,7 +23,7 @@ class ObservableActionViewAsHex(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_FILE_VIEW_AS_HEX
         self.description = "View As Hex"
-        self.jinja_action_path = 'analysis/observable_actions/view_as_hex.html'
+        self.action_path = 'analysis/observable_actions/view_as_hex.html'
         self.icon = 'zoom-in'
 
 class ObservableActionViewAsText(ObservableAction):
@@ -31,7 +31,7 @@ class ObservableActionViewAsText(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_FILE_VIEW_AS_TEXT
         self.description = "View As Text"
-        self.jinja_action_path = 'analysis/observable_actions/view_as_text.html'
+        self.action_path = 'analysis/observable_actions/view_as_text.html'
         self.icon = 'file'
 
 class ObservableActionViewAsHtml(ObservableAction):
@@ -39,7 +39,7 @@ class ObservableActionViewAsHtml(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_FILE_VIEW_AS_HTML
         self.description = "Open"
-        self.jinja_action_path = 'analysis/observable_actions/view_as_html.html'
+        self.action_path = 'analysis/observable_actions/view_as_html.html'
         self.icon = 'new-window'
 
 class ObservableActionViewInBrowser(ObservableAction):
@@ -47,7 +47,7 @@ class ObservableActionViewInBrowser(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_FILE_VIEW_IN_BROWSER
         self.description = "Open"
-        self.jinja_action_path = 'analysis/observable_actions/view_in_browser.html'
+        self.action_path = 'analysis/observable_actions/view_in_browser.html'
         self.icon = 'new-window'
 
 class ObservableActionFileSendTo(ObservableAction):
@@ -55,7 +55,7 @@ class ObservableActionFileSendTo(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_FILE_SEND_TO
         self.description = "Send to..."
-        self.jinja_action_path = 'analysis/observable_actions/send_to.html'
+        self.action_path = 'analysis/observable_actions/send_to.html'
         self.icon = 'export'
 
 class ObservableActionCollectFile(ObservableAction):
@@ -63,7 +63,7 @@ class ObservableActionCollectFile(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_COLLECT_FILE
         self.description = "Collect File"
-        self.jinja_action_path = 'analysis/observable_actions/collect_file.html'
+        self.action_path = 'analysis/observable_actions/collect_file.html'
         self.icon = 'save-file'
 
 class ObservableActionFileRender(ObservableAction):
@@ -71,5 +71,5 @@ class ObservableActionFileRender(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_FILE_RENDER
         self.description = "Attempt to render screenshot of HTML"
-        self.jinja_action_path = 'analysis/observable_actions/file_render.html'
+        self.action_path = 'analysis/observable_actions/file_render.html'
         self.icon = 'camera'

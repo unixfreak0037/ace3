@@ -54,6 +54,12 @@ def sha256_str(data: str) -> str:
     hasher.update(data.encode(errors="ignore"))
     return hasher.hexdigest()
 
+def sha256_bytes(data: bytes) -> str:
+    """Returns the sha256 of the given bytes."""
+    hasher = hashlib.sha256()
+    hasher.update(data)
+    return hasher.hexdigest()
+
 RE_SHA256 = re.compile(r'^[a-f0-9]{64}$', re.I)
 def is_sha256_hex(value: str) -> bool:
     """Returns True if the given string (can be) a sha256 hex string."""

@@ -6,7 +6,6 @@ from saq.configuration.config import get_config_value_as_list
 from saq.constants import CONFIG_GLOBAL, CONFIG_GLOBAL_LOCAL_DOMAINS, CONFIG_GLOBAL_LOCAL_EMAIL_DOMAINS, F_URI_PATH, F_URL, F_USER_AGENT
 from saq.gui import ObservableActionSeparator, ObservableActionUrlCrawl, ObservableActionUrlscan
 from saq.observables.generator import map_observable_type
-from saq.remediation import RemediationTarget
 from urlfinderlib.url import URL
 from urlfinderlib import find_urls
 
@@ -72,9 +71,7 @@ class URLObservable(Observable):
 
     @property
     def remediation_targets(self):
-        if self.is_managed():
-            return []
-        return [RemediationTarget('zerofox_threat', self.value)]
+        return []
 
     def is_managed(self):
         """Returns True if this URL has a managed domain."""

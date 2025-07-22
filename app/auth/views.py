@@ -23,10 +23,14 @@ def login():
     user = None
 
     try:
-        user = get_db().query(User).filter_by(username=form.username.data).one()
+        user = get_db().query(User).filter_by(username=form.username.data).one_or_none()
     except Exception as e:
         logging.warning(f"login failed: invalid username {form.username.data} from {get_remote_ipv4()}: {e}")
         report_exception()
+        flash('Invalid username or password.')
+        return render_template('auth/login.html', form=form)
+
+    if user is None:
         flash('Invalid username or password.')
         return render_template('auth/login.html', form=form)
 

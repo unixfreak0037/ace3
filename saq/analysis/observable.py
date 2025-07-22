@@ -23,6 +23,7 @@ from saq.util import create_timedelta, parse_event_time
 if TYPE_CHECKING:
     from saq.analysis.analysis import Analysis
     from saq.analysis.analysis_tree.analysis_tree_manager import AnalysisTreeManager
+    from saq.remediation import RemediationTarget
 
 class Observable(EventSource):
     """Represents a piece of information discovered in an analysis that can itself be analyzed."""
@@ -69,7 +70,7 @@ class Observable(EventSource):
         self._matching_events_by_status = None
 
         # runtime state 
-        self._sha256_hash = None
+        self._sha256_hasher = None
 
     # temporary backwards compatibility
     # TODO this gets moved to some display layer we build when we refactor the gui
@@ -256,16 +257,22 @@ class Observable(EventSource):
     def value(self, value):
         self._value = value
 
+    def _initialize_sha256_hasher(self) -> hashlib.sha256:
+        if self._sha256_hasher is None:
+            self._sha256_hasher = hashlib.sha256()
+            self._sha256_hasher.update(self.value.encode('utf8', errors='ignore'))
+
+        return self._sha256_hasher
+
     @property
     def sha256_hash(self) -> str:
         """Returns the hexidecimal SHA256 hash of the value of this observable."""
-        if self._sha256_hash:
-            return self._sha256_hash
+        return self._initialize_sha256_hasher().hexdigest()
 
-        sha256_hasher = hashlib.sha256()
-        sha256_hasher.update(self.value.encode('utf8', errors='ignore'))
-        self._sha256_hash = sha256_hasher.hexdigest()
-        return self._sha256_hash
+    @property
+    def sha256_bytes(self) -> bytes:
+        """Returns the bytes of the SHA256 hash of the value of this observable."""
+        return self._initialize_sha256_hasher().digest()
 
     @property
     def time(self):
@@ -296,7 +303,7 @@ class Observable(EventSource):
         self._directives = value
 
     @property
-    def remediation_targets(self):
+    def remediation_targets(self) -> list["RemediationTarget"]:
         """Returns a list of remediation targets for the observable, by default this is an empty list."""
         return []
 
@@ -844,3 +851,5 @@ def get_observable_type_expiration_time(observable_type: str) -> Union[datetime,
             return datetime.now(UTC) + create_timedelta(delta)
         except:
             logging.error(f'Observable type {observable_type} has an invalid expiration mapping: {delta}')
+
+    return None

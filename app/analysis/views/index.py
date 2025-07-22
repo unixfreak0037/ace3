@@ -15,6 +15,7 @@ from saq.configuration.config import get_config
 from saq.constants import CLOSED_EVENT_LIMIT, F_FILE, VALID_OBSERVABLE_TYPES
 from saq.database.model import Campaign, Comment, Company, Malware, User, Event
 from saq.database.pool import get_db, get_db_connection
+from saq.database.util.observable_detection import get_all_observable_detections
 from saq.disposition import get_dispositions
 from saq.error.reporting import report_exception
 from saq.util.ui import create_histogram_string
@@ -84,28 +85,28 @@ def index():
 
     # XXX refactor this omg
     # get all of the current observable detection data 
-    observable_detections = {} # key = observable.uuid, value =
+    observable_detections = get_all_observable_detections(alert.root_analysis)
 
-    try:
-        import ace_api
-        api_result = ace_api.get_observables(alert_uuids=[alert.uuid], remote_host=get_config()["api"]["prefix"], api_key=get_config()["api"]["api_key"])
-        if api_result["error"]:
-            logging.warning("unable to get observable detections for %s: %s", alert.uuid, api_result["error"])
-        else:
-            for result in api_result["results"]:
-                observable = alert.get_observable_by_spec(result["type"], base64.b64decode(result["value"]).decode())
-                if observable:
-                    if result["for_detection"]:
-                        message = "enabled by unknown"
-                        if result["enabled_by"]:
-                            message = f"enabled by {result['enabled_by']['display_name']}"
-                            if result["detection_context"]:
-                                message += " - " + result['detection_context']
+    #try:
+        #import ace_api
+        #api_result = ace_api.get_observables(alert_uuids=[alert.uuid], remote_host=get_config()["api"]["prefix"], api_key=get_config()["api"]["api_key"])
+        #if api_result["error"]:
+            #logging.warning("unable to get observable detections for %s: %s", alert.uuid, api_result["error"])
+        #else:
+            #for result in api_result["results"]:
+                #observable = alert.get_observable_by_spec(result["type"], base64.b64decode(result["value"]).decode())
+                #if observable:
+                    #if result["for_detection"]:
+                        #message = "enabled by unknown"
+                        #if result["enabled_by"]:
+                            #message = f"enabled by {result['enabled_by']['display_name']}"
+                            #if result["detection_context"]:
+                                #message += " - " + result['detection_context']
 
-                        observable_detections[observable.id] = message
+                        #observable_detections[observable.id] = message
 
-    except Exception as e:
-        logging.exception("unable to query observable detections: %s", e)
+    #except Exception as e:
+        #logging.exception("unable to query observable detections: %s", e)
 
     # compute the display tree
     class TreeNode(object):

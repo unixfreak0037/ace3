@@ -14,11 +14,11 @@ def observable_action_whitelist():
         return "operation failed: unable to find alert", 200
 
     try:
-        alert.load()
+        alert.root_analysis.load()
     except Exception as e:
         return f"operation failed: unable to load alert {alert}: {e}", 200
 
-    observable = alert.get_observable(request.form.get('id'))
+    observable = alert.root_analysis.get_observable(request.form.get('id'))
     if not observable:
         return "operation failed: unable to find observable in alert", 200
 
@@ -40,11 +40,11 @@ def observable_action_un_whitelist():
         return "operation failed: unable to find alert", 200
 
     try:
-        alert.load()
+        alert.root_analysis.load()
     except Exception as e:
         return f"operation failed: unable to load alert {alert}: {e}", 200
 
-    observable = alert.get_observable(request.form.get('id'))
+    observable = alert.root_analysis.get_observable(request.form.get('id'))
     if not observable:
         return "operation failed: unable to find observable in alert", 200
 

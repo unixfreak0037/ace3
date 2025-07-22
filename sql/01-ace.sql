@@ -702,7 +702,7 @@ CREATE TABLE `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `username` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL,
   `password_hash` varchar(256) DEFAULT NULL,
-  `email` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL,
+  `email` varchar(320) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL,
   `omniscience` int(11) NOT NULL DEFAULT '0',
   `timezone` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The timezone this user is in. Dates and times will appear in this timezone in the GUI.',
   `display_name` varchar(1024) DEFAULT NULL COMMENT 'The display name of the user. This may be different than the username. This is used in the GUI.',
@@ -711,7 +711,8 @@ CREATE TABLE `users` (
   `apikey_hash` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NULL,
   `apikey_encrypted` BLOB NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `username` (`username`,`email`),
+  UNIQUE KEY `username` (`username`),
+  UNIQUE KEY `email` (`email`),
   UNIQUE KEY `apikey_hash` (`apikey_hash`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;

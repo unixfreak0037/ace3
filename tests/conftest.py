@@ -6,25 +6,20 @@ import socket
 
 from requests import HTTPError
 
-from saq.analysis.adapter import RootAnalysisAdapter
 from saq.analysis.root import RootAnalysis
 from saq.configuration.config import get_config, get_config_value
 from saq.constants import ANALYSIS_MODE_ANALYSIS, CONFIG_ENGINE, CONFIG_ENGINE_WORK_DIR, CONFIG_GLOBAL, CONFIG_GLOBAL_NODE, G_INSTANCE_TYPE, G_SAQ_NODE, G_SAQ_NODE_ID, G_UNIT_TESTING, INSTANCE_TYPE_UNITTEST
 from saq.crypto import set_encryption_password
 from saq.database import get_db
-from saq.database.model import Alert
 from saq.database.pool import get_db_connection
 from saq.database.util.automation_user import initialize_automation_user
 from saq.email_archive import initialize_email_archive
 #from saq.engine.context import clear_current_engine, set_current_engine
-from saq.engine.core import Engine
 from saq.engine.tracking import clear_all_tracking
 from saq.environment import g, get_base_dir, get_data_dir, initialize_environment, set_g, set_node
 
 
 import pytest
-from saq.engine.adapter import EngineAdapter
-from saq.filesystem.adapter import FileSystemAdapter
 from saq.modules.context import AnalysisModuleContext
 from saq.monitor import reset_emitter
 from tests.saq.helpers import start_api_server, stop_api_server, stop_unittest_logging, initialize_unittest_logging
@@ -59,18 +54,11 @@ def global_setup(request, tmpdir, datadir):
     # XXX get rid of this
     set_g(G_UNIT_TESTING, True)
 
-    #data_dir = datadir / "data"
-    #data_dir.mkdir()
     data_dir = os.path.join(saq_home, "data_unittest")
     if os.path.exists(data_dir):
         shutil.rmtree(data_dir)
 
     os.mkdir(data_dir)
-
-    # clear the tracking
-    clear_all_tracking()
-
-    #os.mkdir(data_dir)
 
     temp_dir = tmpdir / "global"
     temp_dir.mkdir()
@@ -82,6 +70,9 @@ def global_setup(request, tmpdir, datadir):
         config_paths=[], 
         logging_config_path=os.path.join(get_base_dir(), 'etc', 'unittest_logging.ini'), 
         relative_dir=None)
+
+    # clear the tracking
+    clear_all_tracking()
 
     # don't reset the database on tests marked as a unit test
     if needs_full_reset(request):
@@ -120,6 +111,7 @@ def global_setup(request, tmpdir, datadir):
             cursor.execute("DELETE FROM event_vector")
             cursor.execute("DELETE FROM events")
             cursor.execute("DELETE FROM campaign")
+            cursor.execute("DELETE FROM comments")
 
             from app.models import User
             u = User()

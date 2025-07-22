@@ -1,10 +1,15 @@
+import uuid
 import pytest
+from saq.analysis.root import RootAnalysis
 from saq.constants import G_AUTOMATION_USER_ID
-from saq.database import Remediation, get_db_connection, User, Alert, Observable
+from saq.database import Remediation, Alert, Observable
+from saq.database.pool import get_db
+from saq.database.util.alert import ALERT
 from saq.email_archive import archive_email
 from saq.environment import g_int
-from saq.remediation import *
 from saq.observables import FQDNObservable, URLObservable
+from saq.remediation import REMEDIATION_ACTION_REMOVE, REMEDIATION_ACTION_RESTORE, REMEDIATION_STATUS_COMPLETED, REMEDIATION_STATUS_IN_PROGRESS, RemediationDelay, RemediationError, RemediationFailure, RemediationIgnore, RemediationService, RemediationSuccess, RemediationTarget, Remediator, get_remediation_targets
+from tests.saq.helpers import create_root_analysis
 
 @pytest.mark.parametrize('processing, state, css, restore_key, history', [
     (False, 'new', '', None, []),
@@ -296,3 +301,267 @@ def test_alert_get_remediation_targets_bad_observable(monkeypatch):
     targets = alert.get_remediation_targets()
 
     assert targets == []
+
+@pytest.mark.integration 
+def test_get_remediation_targets_empty_list():
+    """Test get_remediation_targets with empty alert_uuids list"""
+    result = get_remediation_targets([])
+    assert result == []
+
+
+@pytest.mark.integration
+def test_get_remediation_targets_nonexistent_alert():
+    """Test get_remediation_targets with non-existent alert UUID"""
+    result = get_remediation_targets(["nonexistent-uuid"])
+    assert result == []
+
+
+@pytest.mark.integration
+def test_get_remediation_targets_single_alert_no_observables():
+    """Test get_remediation_targets with alert that has no observables with remediation targets"""
+    # Create a root analysis with no observables
+    root = create_root_analysis()
+    root.save()
+    
+    # Create alert from root analysis
+    alert = ALERT(root)
+    
+    result = get_remediation_targets([alert.uuid])
+    assert result == []
+
+
+@pytest.mark.integration
+def test_get_remediation_targets_single_alert_with_observables():
+    """Test get_remediation_targets with alert containing observables with remediation targets"""
+    from saq.observables import MessageIDObservable
+    from saq.email_archive import archive_email
+    import tempfile
+    import os
+    
+    # Create a temporary email file and archive it
+    with tempfile.NamedTemporaryFile(delete=False, mode='wb') as f:
+        f.write(b"test email content")
+        temp_email_path = f.name
+    
+    try:
+        message_id = "<test@example.com>"
+        recipients = ["user1@company.com", "user2@company.com"]
+        archive_email(temp_email_path, message_id, recipients)
+        
+        # Create root analysis with MessageID observable
+        root = create_root_analysis()
+        
+        # Add MessageID observable which has remediation targets
+        observable = root.add_observable(MessageIDObservable(message_id))
+        
+        # Create alert from root analysis
+        root.save()
+        alert = ALERT(root)
+        
+        result = get_remediation_targets([alert.uuid])
+        
+        # Should return 2 remediation targets (one for each recipient)
+        assert len(result) == 2
+        assert all(isinstance(target, RemediationTarget) for target in result)
+        assert all(target.type == "email" for target in result)
+        
+        # Check that targets contain expected email keys
+        target_values = [target.value for target in result]
+        expected_values = [f"{message_id}|{recipient}" for recipient in recipients]
+        for expected in expected_values:
+            assert expected in target_values
+            
+    finally:
+        os.unlink(temp_email_path)
+
+
+@pytest.mark.integration
+def test_get_remediation_targets_multiple_alerts():
+    """Test get_remediation_targets with multiple alerts"""
+    from saq.observables import MessageIDObservable
+    from saq.email_archive import archive_email
+    import tempfile
+    import os
+    
+    temp_files = []
+    try:
+        # Create first alert with MessageID observable
+        with tempfile.NamedTemporaryFile(delete=False, mode='wb') as f:
+            f.write(b"test email content 1")
+            temp_files.append(f.name)
+        
+        message_id_1 = "<test1@example.com>"
+        recipients_1 = ["user1@company.com"]
+        archive_email(temp_files[0], message_id_1, recipients_1)
+        
+        root1 = create_root_analysis(uuid=str(uuid.uuid4()))
+
+        observable1 = root1.add_observable(MessageIDObservable(message_id_1))
+        root1.save()
+        alert1 = ALERT(root1)
+        
+        # Create second alert with MessageID observable
+        with tempfile.NamedTemporaryFile(delete=False, mode='wb') as f:
+            f.write(b"test email content 2")
+            temp_files.append(f.name)
+        
+        message_id_2 = "<test2@example.com>"
+        recipients_2 = ["user2@company.com", "user3@company.com"]
+        archive_email(temp_files[1], message_id_2, recipients_2)
+        
+        root2 = create_root_analysis(uuid=str(uuid.uuid4()))
+        
+        observable2 = root2.add_observable(MessageIDObservable(message_id_2))
+        root2.save()
+        alert2 = ALERT(root2)
+        
+        result = get_remediation_targets([alert1.uuid, alert2.uuid])
+        
+        # Should return 3 remediation targets total (1 from first alert, 2 from second)
+        assert len(result) == 3
+        assert all(isinstance(target, RemediationTarget) for target in result)
+        assert all(target.type == "email" for target in result)
+        
+        # Check that all expected targets are present
+        target_values = [target.value for target in result]
+        expected_values = [
+            f"{message_id_1}|{recipients_1[0]}",
+            f"{message_id_2}|{recipients_2[0]}",
+            f"{message_id_2}|{recipients_2[1]}"
+        ]
+        for expected in expected_values:
+            assert expected in target_values
+            
+    finally:
+        for temp_file in temp_files:
+            os.unlink(temp_file)
+
+
+@pytest.mark.integration 
+def test_get_remediation_targets_deduplication():
+    """Test that get_remediation_targets properly deduplicates targets with same type and value"""
+    from saq.observables import MessageIDObservable
+    from saq.email_archive import archive_email
+    import tempfile
+    import os
+    
+    temp_files = []
+    try:
+        # Create two identical MessageID observables in different alerts
+        message_id = "<duplicate@example.com>"
+        recipients = ["user@company.com"]
+        
+        for i in range(2):
+            with tempfile.NamedTemporaryFile(delete=False, mode='wb') as f:
+                f.write(f"test email content {i}".encode())
+                temp_files.append(f.name)
+            
+            archive_email(temp_files[i], message_id, recipients)
+            
+            root = create_root_analysis(uuid=str(uuid.uuid4()))
+            observable = root.add_observable(MessageIDObservable(message_id))
+            root.save()
+            alert = ALERT(root)
+            
+            if i == 0:
+                alert_uuids = [alert.uuid]
+            else:
+                alert_uuids.append(alert.uuid)
+        
+        result = get_remediation_targets(alert_uuids)
+        
+        # Should return only 1 remediation target despite having 2 identical observables
+        assert len(result) == 1
+        assert result[0].type == "email"
+        assert result[0].value == f"{message_id}|{recipients[0]}"
+        
+    finally:
+        for temp_file in temp_files:
+            os.unlink(temp_file)
+
+
+@pytest.mark.integration
+def test_get_remediation_targets_sorting():
+    """Test that get_remediation_targets returns targets in sorted order"""
+    from saq.observables import MessageIDObservable
+    from saq.email_archive import archive_email
+    import tempfile
+    import os
+    
+    temp_files = []
+    try:
+        # Create multiple MessageID observables with different values to test sorting
+        test_data = [
+            ("<zzz@example.com>", ["zzz@company.com"]),
+            ("<aaa@example.com>", ["aaa@company.com"]),
+            ("<mmm@example.com>", ["mmm@company.com"])
+        ]
+        
+        alert_uuids = []
+        for i, (message_id, recipients) in enumerate(test_data):
+            with tempfile.NamedTemporaryFile(delete=False, mode='wb') as f:
+                f.write(f"test email content {i}".encode())
+                temp_files.append(f.name)
+            
+            archive_email(temp_files[i], message_id, recipients)
+            
+            root = create_root_analysis(uuid=str(uuid.uuid4()))
+            
+            observable = root.add_observable(MessageIDObservable(message_id))
+            root.save()
+            alert = ALERT(root)
+            alert_uuids.append(alert.uuid)
+        
+        result = get_remediation_targets(alert_uuids)
+        
+        # Should return 3 targets sorted by observable_id|type|value
+        assert len(result) == 3
+        
+        # Extract the sort keys and verify they're in ascending order
+        sort_keys = [f"{target.observable_database_id}|{target.type}|{target.value}" for target in result]
+        assert sort_keys == sorted(sort_keys)
+        
+    finally:
+        for temp_file in temp_files:
+            os.unlink(temp_file)
+
+
+@pytest.mark.integration
+def test_get_remediation_targets_mixed_observable_types():
+    """Test get_remediation_targets with mix of observables that have and don't have remediation targets"""
+    from saq.observables import MessageIDObservable, FQDNObservable
+    from saq.email_archive import archive_email
+    import tempfile
+    import os
+    
+    # Create a temporary email file and archive it
+    with tempfile.NamedTemporaryFile(delete=False, mode='wb') as f:
+        f.write(b"test email content")
+        temp_email_path = f.name
+    
+    try:
+        message_id = "<mixed@example.com>"
+        recipients = ["user@company.com"]
+        archive_email(temp_email_path, message_id, recipients)
+        
+        # Create root analysis with both MessageID (has targets) and FQDN (no targets) observables
+        root = create_root_analysis()
+        
+        # Add MessageID observable (has remediation targets)
+        message_observable = root.add_observable(MessageIDObservable(message_id))
+        
+        # Add FQDN observable (no remediation targets)
+        fqdn_observable = root.add_observable(FQDNObservable("example.com"))
+        
+        root.save()
+        alert = ALERT(root)
+        
+        result = get_remediation_targets([alert.uuid])
+        
+        # Should return only 1 target from MessageID observable, FQDN should be ignored
+        assert len(result) == 1
+        assert result[0].type == "email"
+        assert result[0].value == f"{message_id}|{recipients[0]}"
+        
+    finally:
+        os.unlink(temp_email_path)

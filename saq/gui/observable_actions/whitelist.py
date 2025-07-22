@@ -7,7 +7,7 @@ class ObservableActionWhitelist(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_WHITELIST
         self.description = "Whitelist"
-        self.jinja_action_path = 'analysis/observable_actions/whitelist.html'
+        self.action_path = 'analysis/observable_actions/whitelist.html'
         self.icon = 'ok'
 
 class ObservableActionUnWhitelist(ObservableAction):
@@ -15,5 +15,5 @@ class ObservableActionUnWhitelist(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_UN_WHITELIST
         self.description = "Un-Whitelist"
-        self.jinja_action_path = 'analysis/observable_actions/un_whitelist.html'
+        self.action_path = 'analysis/observable_actions/un_whitelist.html'
         self.icon = 'remove'

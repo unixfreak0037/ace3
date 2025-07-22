@@ -1,9 +1,30 @@
 from typing import Optional
+
+from pymysql import IntegrityError
 from saq.analysis.disposition_history import DispositionHistory
 from saq.analysis.observable import Observable
-from saq.constants import F_FILE
 from saq.database.pool import get_db_connection
 
+def upsert_observable(observable: Observable) -> int:
+    """Upserts an observable into the database. Returns the database id of the observable."""
+    with get_db_connection() as db:
+        cursor = db.cursor()
+        cursor.execute("SELECT id FROM observables WHERE type = %s AND sha256 = %s", (observable.type, observable.sha256_bytes))
+        result = cursor.fetchone()
+        if result:
+            return result[0]
+
+        try:
+            cursor.execute("INSERT INTO observables (`type`, `value`, `sha256`) VALUES (%s, %s, %s)", (observable.type, observable.value, observable.sha256_bytes))
+            db.commit()
+            return cursor.lastrowid
+        except IntegrityError:
+            cursor.execute("SELECT id FROM observables WHERE type = %s AND sha256 = %s", (observable.type, observable.sha256_bytes))
+            result = cursor.fetchone()
+            if result:
+                return result[0]
+
+        raise ValueError(f"Failed to upsert observable: {observable.type} {observable.value} {observable.sha256_bytes}")
 
 def observable_is_set_for_detection(observable: Observable) -> bool:
     """Returns True if the observable is set for detection, False otherwise."""

@@ -293,7 +293,7 @@
                         {% endif %}
                     {% endfor %}
                 {% else %}
-                    {% with _observable=node.obj, alert=alert %}
+                    {% with _observable=node.obj, alert=alert, observable_presenter=node.presenter %}
                         {% include node.presenter.template_path %}
                     {% endwith %}
                 {% endif %}

@@ -4,42 +4,7 @@ from flask import render_template, request
 from flask_login import current_user, login_required
 from app.blueprints import analysis
 from saq.configuration.config import get_config
-from saq.database.model import Alert, Observable, ObservableMapping
-from saq.database.pool import get_db
-from saq.observables.generator import create_observable
-from saq.remediation import RemediationTarget
-
-def get_remediation_targets(alert_uuids):
-    # get all remediatable observables from the given alert uuids
-    query = get_db().query(Observable, Alert)
-    query = query.join(ObservableMapping, Observable.id == ObservableMapping.observable_id)
-    query = query.join(Alert, ObservableMapping.alert_id == Alert.id)
-    query = query.filter(Alert.uuid.in_(alert_uuids))
-    observables = query.all()
-
-    # get remediation targets for each observable
-    targets = {}
-    for o, a in observables:
-        observable = create_observable(o.type, o.display_value)
-        observable.alert = a
-        for target in observable.remediation_targets:
-            target.observable_id = o.id
-            targets[target.id] = target
-
-    # return sorted list of targets
-    targets = list(targets.values())
-    targets.sort(key=lambda x: f"{x.observable_id}|{x.type}|{x.value}")
-
-    # 4/7/2021 - de-dupe this list, the type + value should be unique
-    temp = {} # key = {x.type}{x.value}, value = target
-    for target in targets:
-        # map everything to the key, if it already exists just skip it
-        key = f"{target.type}|{target.value}".lower()
-        if key not in temp:
-            temp[key] = target
-
-    targets = list(temp.values())
-    return targets
+from saq.remediation import RemediationTarget, get_remediation_targets
 
 @analysis.route('/remediation_targets', methods=['POST', 'PUT', 'DELETE', 'PATCH'])
 @login_required

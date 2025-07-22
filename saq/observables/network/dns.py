@@ -3,9 +3,7 @@ from saq.configuration.config import get_config_value_as_list
 from saq.constants import CONFIG_GLOBAL, CONFIG_GLOBAL_LOCAL_DOMAINS, CONFIG_GLOBAL_LOCAL_EMAIL_DOMAINS, F_FQDN
 from saq.observables.base import CaselessObservable, ObservableValueError
 from saq.observables.generator import map_observable_type
-from saq.remediation import RemediationTarget
 from saq.util import is_subdomain
-
 
 class FQDNObservable(CaselessObservable):
     def __init__(self, *args, **kwargs):
@@ -34,9 +32,7 @@ class FQDNObservable(CaselessObservable):
 
     @property
     def remediation_targets(self):
-        if self.is_managed():
-            return []
-        return [RemediationTarget('zerofox_threat', self.value)]
+        return []
 
     def is_managed(self):
         """Returns True if this FQDN is a managed DN."""

@@ -139,7 +139,6 @@ F_WINDOWS_SERVICE = 'windows_service'
 F_YARA = 'yara'
 F_YARA_RULE = 'yara_rule'
 F_YARA_STRING = 'yara_string'
-F_ZEROFOX_ALERT = 'zerofox_alert'
 
 OBSERVABLE_DESCRIPTIONS = {
     F_ASSET: 'a F_IPV4 identified to be a managed asset',
@@ -229,7 +228,6 @@ OBSERVABLE_DESCRIPTIONS = {
     F_YARA: 'yara scan result *** DEPRECATED (use F_YARA_RULE instead)',
     F_YARA_RULE: 'yara rule name',
     F_YARA_STRING: 'yara rule and string name',
-    F_ZEROFOX_ALERT: 'id of a ZeroFOX alert',
 }
 
 VALID_OBSERVABLE_TYPES = sorted([
@@ -319,7 +317,6 @@ VALID_OBSERVABLE_TYPES = sorted([
     F_YARA,
     F_YARA_RULE,
     F_YARA_STRING,
-    F_ZEROFOX_ALERT,
 ])
 
 DEPRECATED_OBSERVABLES = sorted([
@@ -746,7 +743,6 @@ ANALYSIS_TYPE_PROOFPOINT_URL = 'proofpoint - url'
 ANALYSIS_TYPE_PROOFPOINT_TRAP = 'proofpoint - trap'
 ANALYSIS_TYPE_QRADAR_OFFENSE = 'qradar_offense'
 ANALYSIS_TYPE_VIRUSTOTAL_LIVEHUNT = 'vti_livehunt'
-ANALYSIS_TYPE_ZEROFOX = 'zerofox'
 
 # supported intelligence databases
 INTEL_DB_SIP = 'sip'

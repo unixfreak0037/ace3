@@ -17,24 +17,6 @@ from saq.error.reporting import report_exception
 from saq.util.filesystem import abs_path
 from saq.util.hashing import sha256_file
 
-def get_default_node_host(c):
-    # get the list of available nodes
-    sql = """
-        SELECT
-            nodes.location
-        FROM
-            nodes LEFT JOIN node_modes ON nodes.id = node_modes.node_id
-        WHERE
-            nodes.any_mode OR node_modes.analysis_mode = %s
-        ORDER BY
-            nodes.location
-    """
-    c.execute(sql, (ANALYSIS_MODE_CORRELATION,))
-    available_nodes = c.fetchall()
-
-    from saq.engine import translate_node
-    return translate_node(available_nodes[0][0])
-
 @analysis.route('/new_alert', methods=['POST'])
 @login_required
 def new_alert():
@@ -136,15 +118,15 @@ ORDER BY
                 }
 
                 if o_time:
-                    o_time = datetime.datetime.strptime(o_time, '%m-%d-%Y %H:%M:%S')
+                    o_time = datetime.strptime(o_time, '%m-%d-%Y %H:%M:%S')
                     observable['time'] = timezone.localize(o_time)
 
                 if o_type == F_FILE:
                     if is_local:
                         local_path = request.form.get(f'observables_values_{index}')
                         #observable['value'] = os.path.basename(local_path)
-                        observables["value"] = sha256_file(local_path)
-                        observables["file_path"] = os.path.basename(local_path)
+                        observable["value"] = sha256_file(local_path)
+                        observable["file_path"] = os.path.basename(local_path)
                         files.append((observable['value'], open(local_path, 'rb')))
 
                     else:
@@ -164,8 +146,8 @@ ORDER BY
 
                             files.append((upload_file.filename, open(save_path, 'rb')))
 
-                        observable['value'] = sha256_file(save_path)
-                        observable['file_path'] = upload_file.filename
+                            observable['value'] = sha256_file(save_path)
+                            observable['file_path'] = upload_file.filename
 
                 # multi fields add multiple observables of the same type
                 if o_data_sep == "multi":

@@ -5,12 +5,16 @@ import json
 import logging
 from saq.configuration import get_config
 from saq.database import Remediation, ObservableRemediationMapping, get_db
+from saq.database.database_observable import upsert_observable
+from saq.database.model import Alert
+from saq.database.util.alert import get_alert_by_uuid
 from saq.error import report_exception
 from sqlalchemy import or_
 import threading
 import time
 import uuid
 
+from saq.observables.generator import create_observable
 from saq.service import ACEServiceInterface
 
 # remediation statuses
@@ -90,11 +94,11 @@ class RemediationTarget():
         # if the remediation comes from an observable in an alert then this is the 
         # id from the observables table
         # this allows us to tie remediation to alerts via the observable_remediation_mapping table
-        self.observable_id = None
+        self.observable_database_id = None
 
         # if id is givent then decode it and use for type and value
         if id is not None:
-            self.observable_id, self.type, self.value = b64decode(id.encode('ascii')).decode('utf-8').split('|', 2)
+            self.observable_database_id, self.type, self.value = b64decode(id.encode('ascii')).decode('utf-8').split('|', 2)
 
         # get remediation history for this target
         get_db().commit()
@@ -107,7 +111,7 @@ class RemediationTarget():
     @property
     def id(self):
         # return an html/js friendly representation of the target
-        return b64encode(f"{self.observable_id}|{self.type}|{self.value}".encode('utf-8')).decode('ascii')
+        return b64encode(f"{self.observable_database_id}|{self.type}|{self.value}".encode('utf-8')).decode('ascii')
 
     @property
     def processing(self):
@@ -158,14 +162,16 @@ class RemediationTarget():
             restore_key=self.last_restore_key,
         )
         get_db().add(remediation)
-        get_db().commit()
+        get_db().flush()
 
-        if self.observable_id:
-            or_mapping = ObservableRemediationMapping(
-                observable_id=self.observable_id,
-                remediation_id=remediation.id)
-            get_db().add(or_mapping)
-            get_db().commit()
+        database_id = upsert_observable(create_observable(self.type, self.value))
+
+        or_mapping = ObservableRemediationMapping(
+            observable_id=database_id,
+            remediation_id=remediation.id)
+        get_db().add(or_mapping)
+
+        get_db().commit()
 
     def stop_remediation(self):
         for h in self.history:
@@ -181,6 +187,32 @@ class RemediationTarget():
 
     def __lt__(self, other):
         return self.value < other.value
+
+def get_remediation_targets(alert_uuids: list[str]) -> list[RemediationTarget]:
+    """Returns a list of remediation targets for the given alert uuids."""
+    targets: list[RemediationTarget] = []
+    for alert_uuid in alert_uuids:
+        alert = get_alert_by_uuid(alert_uuid)
+        if alert is None:
+            logging.warning(f"alert {alert_uuid} not found in remediation target list")
+            continue
+
+        alert.root_analysis.load()
+        for observable in alert.root_analysis.all_observables:
+            targets.extend(observable.remediation_targets)
+
+    # 4/7/2021 - de-dupe this list, the type + value should be unique
+    temp = {} # key = {x.type}{x.value}, value = target
+    for target in targets:
+        # map everything to the key, if it already exists just skip it
+        key = f"{target.type}|{target.value}".lower()
+        if key not in temp:
+            temp[key] = target
+
+    targets = list(temp.values())
+
+    # return sorted list of targets
+    return sorted(targets, key=lambda x: f"{x.observable_database_id}|{x.type}|{x.value}")
 
 class RemediationService(ACEServiceInterface):
     def __init__(self):

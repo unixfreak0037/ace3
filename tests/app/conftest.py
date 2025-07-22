@@ -5,31 +5,28 @@ from app.application import create_app
 from app.models import User
 from saq.constants import QUEUE_DEFAULT
 from saq.database.pool import get_db_connection
+from saq.database.util.user_management import add_user, delete_user
 
 @pytest.fixture(scope="function")
 def analyst(global_setup):
 
-    u = User()
-    u.username = "john"
-    u.email = "john@localhost"
-    u.display_name = "john"
-    u.queue = QUEUE_DEFAULT
-    u.timezone = "Etc/UTC"
-    u.password = "password"
+    analyst = add_user(
+        username="john",
+        email="john@localhost",
+        display_name="john",
+        password="password",
+        queue=QUEUE_DEFAULT,
+        timezone="Etc/UTC"
+    )
 
-    with get_db_connection() as db:
-        cursor = db.cursor()
-        cursor.execute("""INSERT INTO users ( username, email, password_hash, timezone, display_name, queue ) VALUES ( %s, %s, %s, %s, %s, %s )""", (
-            u.username, u.email, u.password_hash, u.timezone, u.display_name, u.queue ))
-        user_id = cursor.lastrowid
-        db.commit()
+    yield analyst.id
 
-    yield user_id
+    delete_user("john")
 
-    with get_db_connection() as db:
-        cursor = db.cursor()
-        cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
-        db.commit()
+    #with get_db_connection() as db:
+        #cursor = db.cursor()
+        #cursor.execute("DELETE FROM users WHERE id = %s", (analyst.id,))
+        #db.commit()
 
 @pytest.fixture(autouse=True, scope="function")
 def app(global_setup):

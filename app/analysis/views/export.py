@@ -9,6 +9,7 @@ import os
 import smtplib
 from subprocess import PIPE, Popen
 from uuid import uuid4
+import uuid
 import zipfile
 from flask import flash, make_response, redirect, request, send_from_directory, session, url_for
 from flask_login import current_user, login_required
@@ -37,12 +38,12 @@ def download_json():
     try:
         alert.load()
     except Exception as e:
-        logging.error("unable to load alert uuid {0}: {1}".format(request.args['uuid'], str(e)))
+        logging.error("unable to load alert uuid {0}: {1}".format(request.args.get('uuid'), str(e)))
         return '{}'
 
     nodes = []
     next_node_id = 1
-    for analysis in alert.all_analysis:
+    for analysis in alert.root_analysis.all_analysis:
         analysis.node_id = 0 if analysis is alert else next_node_id
         next_node_id += 1
         node = {
@@ -54,7 +55,7 @@ def download_json():
             'hidden': False,  # TODO try to hide the ones that didn't have any analysis
             'shape': 'box',
             'label': type(analysis).__name__,
-            'details': type(analysis).__name__ if analysis.jinja_template_path is None else analysis.jinja_display_name,
+            'details': analysis.details,
             'observable_uuid': None if analysis.observable is None else analysis.observable.id,
             'module_path': analysis.module_path}
 
@@ -63,7 +64,7 @@ def download_json():
 
         nodes.append(node)
 
-    for observable in alert.all_observables:
+    for observable in alert.root_analysis.all_observables:
         observable.node_id = next_node_id
         next_node_id += 1
         nodes.append({
@@ -72,7 +73,7 @@ def download_json():
             'details': str(observable)})
 
     edges = []
-    for analysis in alert.all_analysis:
+    for analysis in alert.root_analysis.all_analysis:
         for observable in analysis.observables:
             edges.append({
                 'from': analysis.node_id,
@@ -87,8 +88,8 @@ def download_json():
     tag_nodes = {}  # key = str(tag), value = {} (tag node)
     tag_edges = []
 
-    tagged_objects = alert.all_analysis
-    tagged_objects.extend(alert.all_observables)
+    tagged_objects = alert.root_analysis.all_analysis
+    tagged_objects.extend(alert.root_analysis.all_observables)
 
     for tagged_object in tagged_objects:
         for tag in tagged_object.tags:
@@ -201,13 +202,16 @@ def export_alerts_to_csv():
 @login_required
 def send_alert_to():
     remote_host = request.json['remote_host']
+    if f"send_to_{remote_host}" not in get_config():    
+        return f"Unknown remote host: {remote_host}", 400
+
     remote_path = get_config()[f"send_to_{remote_host}"].get("remote_path")
     alert_uuid = request.json['alert_uuid']
 
     # NOTE: If we require the alert to be locked first, it can't be sent to the remote host until it finished analyzing.
     # This also prevents multiple people from trying to transfer the alert at the same time.
-    lock_uuid = acquire_lock(alert_uuid)
-    if not lock_uuid:
+    lock_uuid = str(uuid.uuid4())
+    if not acquire_lock(alert_uuid, lock_uuid):
         return f"Unable to lock alert {alert_uuid}", 500
 
     try:
@@ -233,7 +237,7 @@ def download_file():
         flash("internal error")
         return redirect(url_for('analysis.index'))
 
-    if not alert.load():
+    if not alert.root_analysis.load():
         flash("internal error")
         logging.error("unable to load alert {0}".format(alert))
         return redirect(url_for('analysis.index'))
@@ -260,8 +264,14 @@ def download_file():
 
     # find the observable with this uuid
     try:
-        file_observable = alert.observable_store[file_uuid]
+        file_observable = alert.root_analysis.get_observable(file_uuid)
     except KeyError:
+        logging.error("missing file observable uuid {0} for alert {1} user {2}".format(
+            file_uuid, alert, current_user))
+        flash("internal error")
+        return redirect(url_for('analysis.index'))
+
+    if file_observable is None:
         logging.error("missing file observable uuid {0} for alert {1} user {2}".format(
             file_uuid, alert, current_user))
         flash("internal error")
@@ -428,7 +438,7 @@ def email_file():
 
     # find the observable with this uuid
     try:
-        file_observable = alert.observable_store[file_uuid]
+        file_observable = alert.root_analysis.get_observable(file_uuid)
     except KeyError:
         logging.error("missing file observable uuid {0} for alert {1} user {2}".format(
                 file_uuid, alert, current_user))
@@ -436,7 +446,7 @@ def email_file():
         return redirect("/analysis?direct=" + alert.uuid)
 
     # get the full path to the file to expose
-    full_path = os.path.join(get_base_dir(), alert.storage_dir, file_observable.value)
+    full_path = os.path.join(get_base_dir(), alert.root_analysis.storage_dir, file_observable.value)
     if not os.path.exists(full_path):
         logging.error("file path {0} does not exist for alert {1} user {2}".format(full_path, alert, current_user))
         flash("internal error")
@@ -513,6 +523,6 @@ def html_details():
         response.mimtype = 'text/plain'
         return response
 
-    response = make_response(alert.details[request.args['field']])
+    response = make_response(alert.root_analysis.details[request.args['field']])
     response.mimtype = 'text/html'
     return response

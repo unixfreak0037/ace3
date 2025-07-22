@@ -7,7 +7,7 @@ class ObservableActionEnableDetection(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_ENABLE_DETECTION
         self.description = "Enable observable for future detection"
-        self.jinja_action_path = 'analysis/observable_actions/enable_detection.html'
+        self.action_path = 'analysis/observable_actions/enable_detection.html'
         self.icon = 'ok'
 
 class ObservableActionDisableableDetection(ObservableAction):
@@ -15,5 +15,5 @@ class ObservableActionDisableableDetection(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_DISABLE_DETECTION
         self.description = "Disable observable for future detection"
-        self.jinja_action_path = 'analysis/observable_actions/disable_detection.html'
+        self.action_path = 'analysis/observable_actions/disable_detection.html'
         self.icon = 'remove'

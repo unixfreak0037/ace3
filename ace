@@ -1137,6 +1137,7 @@ start_api_parser.set_defaults(func=start_api)
 def add_user(args):
     from app.models import User
     from saq.database import get_db_connection
+    from saq.database.util.user_management import add_user
     from getpass import getpass
 
     u = User()
@@ -1169,11 +1170,13 @@ def add_user(args):
 
     u.password = password
 
-    with get_db_connection() as db:
-        c = db.cursor()
-        c.execute("""INSERT INTO users ( username, email, password_hash, timezone, display_name, queue ) VALUES ( %s, %s, %s, %s, %s, %s )""", (
-            u.username, u.email, u.password_hash, u.timezone, u.display_name, u.queue ))
-        db.commit()
+    add_user(u.username, u.email, password, u.timezone, u.display_name, u.queue)
+
+    #with get_db_connection() as db:
+        #c = db.cursor()
+        #c.execute("""INSERT INTO users ( username, email, password_hash, timezone, display_name, queue ) VALUES ( %s, %s, %s, %s, %s, %s )""", (
+            #u.username, u.email, u.password_hash, u.timezone, u.display_name, u.queue ))
+        #db.commit()
 
     logging.info("added user {}".format(u.username))
 

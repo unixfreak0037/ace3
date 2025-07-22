@@ -90,7 +90,7 @@ def filter_special_tags(tags):
     return [tag for tag in tags if tag.name not in special_tag_names]
 
 def get_existing_filter(filter_name: str, inverted: bool):
-    filters = session.get("filter")
+    filters = session.get("filters")
     if not filters:
         return None
 

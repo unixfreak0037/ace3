@@ -4,7 +4,7 @@ $('#action_{{action.name}}_{{unique_reference}}').on('click', function() {
     // we need to give the modal some data, we can pass it here
     sendToDatastore.url = "{{ url_for('analysis.observable_action') }}"
     sendToDatastore.formData = {
-              "alert_uuid": "{{_observable.root.uuid}}",
+              "alert_uuid": "{{alert.uuid}}",
               "observable_uuid": "{{_observable.id}}",
               "action_id": "{{action.name}}",
           };

@@ -4,7 +4,14 @@
 {% block observable_display_value %}{{ _observable.display_value }}{% endblock %}
 {% if _observable.display_time %} @ {{ _observable.display_time }} {% endif %}</span>
 {% if _observable.volatile %}<span style="font-size: 50%">(volatile)</span>{% endif %}
-{% if _observable.id in observable_detections %}<span class="observable_display" style="font-size: 70%; font-weight: bold; color: darkred" onmousedown="alert(decodeURI(decodeURI(atob('{{observable_detections[_observable.id] | b64escape}}'))))" alt="{{observable_detections[_observable.id] | e}}"> (detect enabld 👀)</span>{% endif %}
+{% if _observable.id in observable_detections and observable_detections[_observable.id].for_detection %}
+    <span 
+        class="observable_display" 
+        style="font-size: 70%; font-weight: bold; color: darkred" 
+        onmousedown="alert(decodeURI(decodeURI(atob('{{observable_detections[_observable.id].detection_context | b64escape}}'))))" 
+        alt="{{observable_detections[_observable.id].detection_context | e}}"> (detect enabled 👀)
+    </span>
+{% endif %}
 <script type="text/javascript">
     $('#o_filter_{{unique_reference}}').on('click', function() {
         set_filters([{'name': 'Observable', 'inverted': false, 'values': [['{{_observable.type}}',decodeURIComponent(atob('{{_observable.value | b64escape}}'))]]}]);

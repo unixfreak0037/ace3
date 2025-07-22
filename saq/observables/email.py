@@ -1,5 +1,6 @@
 import html
 import logging
+from typing import TYPE_CHECKING
 from saq.analysis.observable import Observable
 from saq.constants import CONFIG_GLOBAL, CONFIG_GLOBAL_LOCAL_EMAIL_DOMAINS, F_EMAIL_ADDRESS, F_EMAIL_BODY, F_EMAIL_CONVERSATION, F_EMAIL_DELIVERY, F_EMAIL_HEADER, F_EMAIL_SUBJECT, F_EMAIL_X_MAILER, F_MESSAGE_ID, create_email_delivery, parse_email_conversation, parse_email_delivery
 from saq.database.model import Remediation
@@ -9,9 +10,11 @@ from saq.environment import g_list
 from saq.gui import ObservableActionAddLocalEmailDomain
 from saq.observables.base import CaselessObservable, ObservableValueError
 from saq.observables.generator import map_observable_type
-from saq.remediation import RemediationTarget
 from saq.util import is_subdomain
 
+
+if TYPE_CHECKING:
+    from saq.remediation import RemediationTarget
 
 class EmailAddressObservable(CaselessObservable):
     def __init__(self, *args, **kwargs):
@@ -75,7 +78,9 @@ class EmailDeliveryObservable(CaselessObservable):
         return "analysis/email_delivery_observable.html"
 
     @property
-    def remediation_targets(self):
+    def remediation_targets(self) -> list["RemediationTarget"]:
+        from saq.remediation import RemediationTarget
+
         if is_local_email_domain(self.email_address):
             return [RemediationTarget('email', self.value)]
 
@@ -138,7 +143,9 @@ class MessageIDObservable(Observable):
         self._value = normalize_message_id(new_value.strip())
 
     @property
-    def remediation_targets(self):
+    def remediation_targets(self) -> list["RemediationTarget"]:
+        from saq.remediation import RemediationTarget
+
         message_id = html.unescape(self.value)
 
         # create targets from recipients of message_id in email archive

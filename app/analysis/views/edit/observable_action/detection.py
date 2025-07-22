@@ -2,12 +2,10 @@ from datetime import datetime
 import logging
 from flask import flash, redirect, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func
 from app.analysis.views.session.alert import get_current_alert
 from app.blueprints import analysis
 from saq.constants import ACTION_ENABLE_DETECTION
-from saq.database.model import Observable
-from saq.database.pool import get_db
+from saq.database.util.observable_detection import disable_observable_detection, enable_observable_detection
 from saq.error.reporting import report_exception
 
 @analysis.route('/observable_action_set_for_detection', methods=['POST'])
@@ -17,35 +15,31 @@ def observable_action_set_for_detection():
     if alert is None:
         return "Error: unable to find alert", 200
     try:
-        alert.load()
+        alert.root_analysis.load()
     except Exception as e:
         return f"Error: unable to load alert {alert}: {e}", 200
 
-    observable = alert.get_observable(request.form.get('observable_uuid'))
+    observable = alert.root_analysis.get_observable(request.form.get('observable_uuid'))
     if not observable:
         return "Error: unable to find observable in alert", 200
 
-    try:
-        db_observable = get_db().query(Observable).filter(Observable.type==observable.type, Observable.md5==func.UNHEX(observable.md5_hex)).one()
-    except Exception as e:
-        error_message = f"Error: unable to update observable for_detection: {e}"
-        logging.error(error_message)
-        return error_message, 500
+    #try:
+        #db_observable = get_db().query(Observable).filter(Observable.type==observable.type, Observable.sha256==func.UNHEX(observable.sha256_hash)).one()
+    #except Exception as e:
+        #error_message = f"Error: unable to update observable for_detection: {e}"
+        #logging.error(error_message)
+        #return error_message, 500
 
     for_detection_status = 'disabled'
     action_id = request.form.get('action_id')
     try:
         if action_id == ACTION_ENABLE_DETECTION:
+            enable_observable_detection(observable, current_user.id, f"manually enabled in the gui by {current_user} for alert {alert.description} ({alert.uuid})")
             for_detection_status = 'enabled'
-            db_observable.for_detection = True
-            db_observable.enabled_by = current_user.id
-            db_observable.detection_context = f"manually enabled in the gui by {current_user} for alert {alert.description} ({alert.uuid})"
         else:
-            db_observable.for_detection = False
+            disable_observable_detection(observable)
 
         logging.info(f"AUDIT: {current_user} {for_detection_status} observable {observable.value} for detection")
-        get_db().add(db_observable)
-        get_db().commit()
 
     except Exception as e:
         logging.error(f"Error: unable to update observable for_detection to {for_detection_status}: {e}")
@@ -65,13 +59,13 @@ def observable_action_adjust_expiration():
     if alert is None:
         return "Error: unable to find alert", 200
     try:
-        alert.load()
+        alert.root_analysis.load()
     except Exception as e:
         flash(f"Error: unable to load alert {alert}: {e}", 'error')
         return redirection
 
     observable_uuid = request.form.get('observable_uuid')
-    observable = alert.get_observable(observable_uuid)
+    observable = alert.root_analysis.get_observable(observable_uuid)
     if not observable:
         flash("Error: unable to find observable in alert", 'error')
         return redirection
@@ -86,7 +80,7 @@ def observable_action_adjust_expiration():
     except Exception as e:
         logging.error(f"Error: unable to update observable expiration date to {new_expiration_time}: {e}")
         report_exception()
-        flash(f"Error: Observable expiration date update failed", 'error')
+        flash("Error: Observable expiration date update failed", 'error')
         return redirection
 
     logging.info("AUDIT: user %s set expiration for %s to %s", current_user, observable, new_expiration_time)

@@ -11,8 +11,6 @@ from saq.error.reporting import report_exception
 def set_disposition():
     alert_uuids = []
     analysis_page = False
-    alert = None
-    existing_disposition = False
 
     # get disposition and user comment
     disposition = request.form.get('disposition', None)

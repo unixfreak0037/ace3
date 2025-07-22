@@ -8,7 +8,7 @@ class ObservableActionSetSIPIndicatorStatus_Analyzed(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_SET_SIP_INDICATOR_STATUS_ANALYZED
         self.description = "Set SIP indicator status to Analyzed"
-        self.jinja_action_path = 'analysis/observable_actions/set_sip_indicator_status.html'
+        self.action_path = 'analysis/observable_actions/set_sip_indicator_status.html'
         self.icon = 'thumbs-up'
 
 class ObservableActionSetSIPIndicatorStatus_Informational(ObservableAction):
@@ -17,7 +17,7 @@ class ObservableActionSetSIPIndicatorStatus_Informational(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_SET_SIP_INDICATOR_STATUS_INFORMATIONAL
         self.description = "Set SIP indicator status to Informational"
-        self.jinja_action_path = 'analysis/observable_actions/set_sip_indicator_status.html'
+        self.action_path = 'analysis/observable_actions/set_sip_indicator_status.html'
         self.icon = 'remove'
 
 class ObservableActionSetSIPIndicatorStatus_New(ObservableAction):
@@ -26,5 +26,5 @@ class ObservableActionSetSIPIndicatorStatus_New(ObservableAction):
         super().__init__(*args, **kwargs)
         self.name = ACTION_SET_SIP_INDICATOR_STATUS_NEW
         self.description = "Set SIP indicator status to New"
-        self.jinja_action_path = 'analysis/observable_actions/set_sip_indicator_status.html'
+        self.action_path = 'analysis/observable_actions/set_sip_indicator_status.html'
         self.icon = 'refresh'

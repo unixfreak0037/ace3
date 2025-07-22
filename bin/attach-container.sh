@@ -15,4 +15,4 @@ do
 done
 shift $((OPTIND-1))
 
-docker exec -it -u $USER $(docker ps --filter "name=-dev" --format "{{.Names}}" | sort -V | head -n1) /bin/bash -il
+docker exec -it -u $USER $(bin/get-dev-container.sh) /bin/bash -il

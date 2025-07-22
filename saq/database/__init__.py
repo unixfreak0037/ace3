@@ -16,7 +16,7 @@ from saq.database.model import Observable
 from saq.database.model import Persistence, PersistenceSource
 from saq.database.model import Remediation
 from saq.database.model import Tag
-from saq.database.model import User, Owner, DispositionBy, RemediatedBy, UserAlertMetrics, Comment
+from saq.database.model import User, Owner, DispositionBy, RemediatedBy, Comment
 from saq.database.model import Workload
 
 from saq.database.util.alert import ALERT, refresh_observable_expires_on, set_dispositions
