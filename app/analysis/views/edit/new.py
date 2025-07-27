@@ -173,7 +173,11 @@ ORDER BY
             if request.form.get('submit_type') == 'single':
                 # if we only submitted a single obervable then we also modify the description
                 if len(observables) == 1:
-                    description += f" ({observables[0]['value']})"
+                    # XXX this is a hack to get the file path to show up in the description
+                    if observables[0]['type'] == F_FILE:
+                        description += f" ({observables[0]['file_path']})"
+                    else:
+                        description += f" ({observables[0]['value']})"
 
                 result = ace_api.submit(
                     remote_host = translate_node(node_location),

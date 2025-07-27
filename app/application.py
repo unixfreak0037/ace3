@@ -18,7 +18,7 @@ from flask_executor import Executor # XXX what is this for?
 from sqlalchemy import event
 
 from saq.database.pool import set_db
-from saq.environment import g, set_g
+from saq.environment import g
 from saq.monitor import emit_monitor
 from saq.monitor_definitions import MONITOR_SQLALCHEMY_DB_POOL_STATUS
 from saq.util.ui import get_tag_css_class, human_readable_size

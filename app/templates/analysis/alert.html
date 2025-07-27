@@ -87,6 +87,16 @@
         <td class="col-md-10">{{alert.owner.gui_display}} @ {{alert.owner_time}}</td>
     </tr>
     {% endif %}
+    {% if alert.root_analysis.all_tags %}
+    <tr>
+        <td class="col-md-2">Tags</td>
+        <td class="col-md-10">
+            {% for tag in alert.root_analysis.all_tags %}
+            <span class="badge text-bg-{{tag.css_class}}" style="cursor:pointer" onmousedown="set_filters([{'name': 'Tag', 'inverted': false, 'values': ['{{tag.name}}']}])">{{tag.name}}</span>
+            {% endfor %}
+        </td>
+    </tr>
+    {% endif %}
     {% if alert.remover %}
     <tr>
         <td class="col-md-2">Removal</td>
@@ -289,7 +299,6 @@
                     {% for tag in node.obj.tags %}
                         {% if tag.level != 'hidden' %}
                             <span class="badge text-bg-{{tag.css_class}}" style="cursor:pointer" onmousedown="set_filters({'Tag':['{{tag}}']})">{{ tag }}</span>
-                            {% if tag.name.lower().startswith('atos') %} 🤡 {% endif %}
                         {% endif %}
                     {% endfor %}
                 {% else %}
