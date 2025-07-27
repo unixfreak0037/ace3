@@ -16,7 +16,7 @@ class Tag:
         # all tags default to these values
         self.level = 'info'
         self.score = 0
-        self.css_class = 'label-default' # white
+        self.css_class = 'default' # white
 
         if self.name is None:
             logging.error("tag has no name")

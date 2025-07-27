@@ -332,13 +332,13 @@ class Alert(Base):
     @property
     def all_email_analysis(self) -> list[Analysis]:
         from saq.modules.email import EmailAnalysis
-        observables = self.find_observables(lambda o: o.get_analysis(EmailAnalysis))
+        observables = self.root_analysis.find_observables(lambda o: o.get_analysis(EmailAnalysis))
         return [o.get_analysis(EmailAnalysis) for o in observables]
 
     @property
     def has_email_analysis(self) -> bool:
         from saq.modules.email import EmailAnalysis
-        return bool(self.find_observable(lambda o: o.get_analysis(EmailAnalysis)))
+        return bool(self.root_analysis.find_observable(lambda o: o.get_analysis(EmailAnalysis)))
 
     @property
     def has_renderer_screenshot(self) -> bool:
@@ -1029,7 +1029,6 @@ class Event(Base):
     remediation_time = Column(DATETIME, nullable=True)
     owner_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     owner = relationship('User', foreign_keys=[owner_id])
-    _alert_objects = None
 
     @property
     def json(self):
@@ -1070,12 +1069,7 @@ class Event(Base):
 
     @property
     def alert_objects(self) -> list["Alert"]:
-        if self._alert_objects is None:
-            self._alert_objects = [m.alert for m in self.alert_mappings]
-            for alert in self._alert_objects:
-                alert.load()
-
-        return self._alert_objects
+        return [m.alert for m in self.alert_mappings]
 
     # XXX get rid of this
     @property
@@ -1087,7 +1081,7 @@ class Event(Base):
         observables = []
 
         for alert in self.alert_objects:
-            for observable in alert.all_observables:
+            for observable in alert.root_analysis.all_observables:
 
                 # Check if this observable is already in the list
                 existing_observable = next((o for o in observables if o == observable), None)
@@ -1222,7 +1216,7 @@ class Event(Base):
         file_observables = []
 
         for alert in self.alert_objects:
-            for observable in alert.find_observables(lambda o: o.type == F_FILE):
+            for observable in alert.root_analysis.find_observables(lambda o: o.type == F_FILE):
                 file_observables.append(observable)
 
         return file_observables
@@ -1254,7 +1248,7 @@ class Event(Base):
         file_observables = []
 
         for alert in self.alert_objects:
-            for observable in alert.find_observables(lambda o: o.type == F_FILE):
+            for observable in alert.root_analysis.find_observables(lambda o: o.type == F_FILE):
                 if observable.get_analysis(EmailAnalysis):
                     file_observables.append(observable)
 
@@ -1267,7 +1261,7 @@ class Event(Base):
         emails = set()
 
         for alert in self.alert_objects:
-            observables = alert.find_observables(lambda o: o.get_analysis(EmailAnalysis))
+            observables = alert.root_analysis.find_observables(lambda o: o.get_analysis(EmailAnalysis))
             email_analyses = {o.get_analysis(EmailAnalysis) for o in observables}
 
             # Inject the alert's UUID into the EmailAnalysis so that we maintain a link of alert->email
@@ -1283,7 +1277,7 @@ class Event(Base):
         url_domain_counts = {}
 
         for alert in self.alert_objects:
-            domain_counts = find_all_url_domains(alert)
+            domain_counts = find_all_url_domains(alert.root_analysis)
             for d in domain_counts:
                 if d not in url_domain_counts:
                     url_domain_counts[d] = domain_counts[d]
@@ -1297,7 +1291,7 @@ class Event(Base):
         urls = set()
 
         for alert in self.alert_objects:
-            observables = alert.find_observables(lambda o: o.type == F_URL)
+            observables = alert.root_analysis.find_observables(lambda o: o.type == F_URL)
             urls |= {o.value for o in observables}
 
         return urls
@@ -1307,7 +1301,7 @@ class Event(Base):
         fqdns = set()
 
         for alert in self.alert_objects:
-            observables = alert.find_observables(lambda o: o.type == F_FQDN)
+            observables = alert.root_analysis.find_observables(lambda o: o.type == F_FQDN)
             fqdns |= {o.value for o in observables}
 
         return fqdns
@@ -1318,7 +1312,7 @@ class Event(Base):
         user_analysis = set()
 
         for alert in self.alert_objects:
-            observables = alert.find_observables(lambda o: o.get_analysis(UserAnalysis))
+            observables = alert.root_analysis.find_observables(lambda o: o.get_analysis(UserAnalysis))
             user_analysis |= {o.get_analysis(UserAnalysis) for o in observables}
 
         return user_analysis

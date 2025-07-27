@@ -12,12 +12,12 @@ class TestObservable(Observable):
 
     # this allows us to use any object we want for the observable value
     # useful for passing around parameters for testing
-    @property
-    def value(self):
-        return pickle.loads(base64.b64decode(self._value)) # TODO get rid of pickle
+    #@property
+    #def value(self):
+        #return pickle.loads(base64.b64decode(self._value)) # TODO get rid of pickle
 
-    @value.setter
-    def value(self, v):
-        self._value = base64.b64encode(pickle.dumps(v))
+    #@value.setter
+    #def value(self, v):
+        #self._value = base64.b64encode(pickle.dumps(v))
 
 map_observable_type(F_TEST, TestObservable)

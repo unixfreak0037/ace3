@@ -110,6 +110,22 @@ $(document).ready(function() {
         }
     });
 
+    $("#btn-add-to-event").click(function(e) {
+        let all_alert_uuids = get_all_checked_alerts();
+        let disposition = $("input[name='disposition']:checked").val()
+        let disposition_comment = $("textarea[name='comment']").val()
+
+        // Inject the alert uuids, disposition, and comment to the event form. This way alerts that are going to be added to an
+        // event are NOT dispositioned prior to being added to the event. This caused an issue with the analysis module
+        // that changes the analysis mode to "event", but it also lets analysts back out of the modal if they realize
+        // they don't want to disposition the alerts or add them to an event after all.
+        if (all_alert_uuids.length > 0) {
+            $("#event-form").append('<input type="hidden" name="alert_uuids" value="' + all_alert_uuids.join(",") + '" />');
+            $("#event-form").append('<input type="hidden" name="disposition" value="' + disposition + '" />');
+            $("#event-form").append('<input type="hidden" name="disposition_comment" value="' + disposition_comment + '" />');
+        }
+    });
+
     $("#btn-disposition-and-remediate").click(function(e) {
         // set the disposition of selected alerts
         all_alert_uuids = get_all_checked_alerts();

@@ -73,7 +73,6 @@
 {% for tag in _observable.tags %}
     {% if tag.level != 'hidden' %}
         <span class="badge text-bg-{{tag.css_class}}" style="cursor:pointer" onmousedown="set_filters([{'name': 'Tag', 'inverted': false, 'values': ['{{tag}}']}])">{{ tag }}</span>
-        {% if tag.name.lower().startswith('atos') %} 🤡 {% endif %}
     {% endif %}
 {% endfor %}
 
@@ -88,7 +87,15 @@
 {% if _observable.disposition_history %}
     {% for disposition, count, percentage in _observable.disposition_history %}
         {% if count != 1 or disposition != alert.disposition %}
-        <span onmouseover="this.style.textDecoration='underline';" onmouseleave="this.style.textDecoration='';" onmousedown="set_filters([{'name': 'Observable', 'inverted': false, 'values': [ ['{{_observable.type}}', decodeURIComponent(atob('{{_observable.value | b64escape}}'))] ]}, {'name': 'Disposition', 'inverted': false, 'values': ['{{disposition}}']}])" class="badge text-bg-{{dispositions[disposition]['css']}}">{{disposition}} {{percentage | int}}% ({{count}})</span>
+        <span 
+            style="transition: text-decoration 0.1s; cursor: pointer;"
+            onmousedown="set_filters([{'name': 'Observable', 'inverted': false, 'values': [ ['{{_observable.type}}', decodeURIComponent(atob('{{_observable.value | b64escape}}'))] ]}, {'name': 'Disposition', 'inverted': false, 'values': ['{{disposition}}']}])" 
+            class="badge border border-dark text-bg-{{dispositions[disposition]['css']}}"
+            onmouseover="this.style.textDecoration='underline';"
+            onmouseleave="this.style.textDecoration='';"
+        >
+            {{disposition}} {{percentage | int}}% ({{count}})
+        </span>
         {% endif %}
     {% endfor %}
 {% endif %}

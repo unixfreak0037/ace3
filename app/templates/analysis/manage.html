@@ -12,6 +12,7 @@
             <button id="btn-show-remove-tag" type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#tag_remove_modal" uuid=""><span class="bi bi-tags"></span> Remove Tag(s)</button>
             <button type="button" class="btn btn-outline-dark" onclick="show_remediation_targets(get_all_checked_alerts())"><span class="bi bi-magic"></span> Remediation</button>
             <a class="button btn btn-outline-dark" href="{{ url_for('analysis.export_alerts_to_csv') }}"><span class="bi bi-filetype-csv"></span> Export to CSV</a>
+            <button type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#event_modal"><span class="bi bi-plus"></span> Add to Event</button>
         </div>
     </div>
 </div>
@@ -107,7 +108,7 @@
                         </td>
                         {% if display_disposition %}
                         <td>
-                            <span class="badge text-bg-{{dispositions[alert.disposition]['css']}}" style="cursor:pointer" onmousedown='add_filter("Disposition", ["{{alert.disposition}}"])'>{{alert.disposition}}</span>
+                            <span class="badge border border-dark text-bg-{{dispositions[alert.disposition]['css']}}" style="cursor:pointer" onmousedown='add_filter("Disposition", ["{{alert.disposition}}"])'>{{alert.disposition}}</span>
                         </td>
                         {% endif %}
                         <td id="alert_status_{{ alert.uuid }}" style="white-space: nowrap;">{{alert.status}}</td>

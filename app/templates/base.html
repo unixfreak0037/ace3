@@ -76,11 +76,10 @@
                 {% if current_user.is_authenticated %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('analysis.file') }}">Analyze</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('analysis.manage') }}">Alerts</a></li>
-                    <!--<li class="nav-item"><a class="nav-link" href="{{ url_for('events.manage') }}">Events</a></li>-->
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('events.manage') }}">Events</a></li>
                 {% endif %}
             </ul>
             <ul class="navbar-nav">
-                <li class="nav-item"><a class="nav-link" href="https://ace-ecosystem.github.io/ACE/"><span class="bi bi-question-octagon"></span></a></li>
                 {% if current_user.is_authenticated %}
                     {% if config.AUTHENTICATION_ON %}
                         <li class="nav-item dropdown">
@@ -143,9 +142,15 @@
         </div>
     {% endblock %}
 
+    {# 
+        ------------------------------------------------------------   
+        add to event modal 
+        ------------------------------------------------------------
+    #}
+
     {% block event_modal %}
-    <div class="modal fade" id="event_modal" tabindex="-1" role="dialog" aria-labelledby="event_modal_label" aria-hidden="true" style="overflow-y: inherit;">
-        <div class="modal-dialog" style="width: 75%">
+    <div class="modal fade modal-lg" id="event_modal" tabindex="-1" role="dialog" aria-labelledby="event_modal_label" aria-hidden="true">
+        <div class="modal-dialog">
             <form id="event-form" class="form-horizontal" role="form" method="POST" action={{url_for('analysis.add_to_event')}}>
                 <div class="modal-content">
                     <div class="modal-header">
@@ -153,14 +158,14 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body" id="event-primary-container">
-                          <ul class="nav nav-tabs" id="tabContent">
-                            <li class="active"><a href="#open-events" data-toggle="tab">Open Events</a></li>
-                            <li><a href="#internal-collection-events" data-toggle="tab">Internal Collection Events</a></li>
-                            <li><a href="#closed-events" data-toggle="tab">Closed Events</a></li>
-                          </ul>
-                     <div class="tab-content" id="event-tabs">
-                     <br>
-                      <div class="tab-pane active" id="open-events">
+                    <ul class="nav nav-tabs" id="tabContent" role="tablist">
+                        <li class="nav-item" role="presentation"><button type="button" class="nav-link active" id="open-events-tab" data-bs-target="#open-events" data-bs-toggle="tab">Open Events</button></li>
+                        <li class="nav-item" role="presentation"><button type="button" class="nav-link" id="internal-collection-events-tab" data-bs-target="#internal-collection-events" data-bs-toggle="tab">Internal Collection Events</button></li>
+                        <li class="nav-item" role="presentation"><button type="button" class="nav-link" id="closed-events-tab" data-bs-target="#closed-events" data-bs-toggle="tab">Closed Events</button></li>
+                    </ul>
+                    <div class="tab-content" id="event-tabs">
+                    <br>
+                        <div class="tab-pane fade show active" id="open-events" role="tabpanel" aria-labelledby="open-events-tab">
                         {% if open_events %}
                             {% for event in open_events %}
                                 <div class="radio" id="event_container_div_{{event.id}}"><label><input type="radio" name="event" value="{{event.id}}" id="option_{{event.id}}" onclick="toggleNewEventDialog();showEventSaveButton()"><span id="event_match_{{event.id}}"></span>{{event.creation_date}} - {{event.type.value}} - {{event.vector.value}} - {{event.name}}</label></div>
@@ -168,8 +173,8 @@
                         {% else %}
                             No open events.
                         {% endif %}
-                      </div>
-                      <div class="tab-pane" id="internal-collection-events">
+                        </div>
+                        <div class="tab-pane fade" id="internal-collection-events" role="tabpanel" aria-labelledby="internal-collection-events-tab">
                         {% if internal_collection_events %}
                             {% for event in internal_collection_events %}
                                 <div class="radio" id="event_container_div_{{event.id}}"><label><input type="radio" name="event" value="{{event.id}}" id="option_{{event.id}}" onclick="toggleNewEventDialog();showEventSaveButton()"><span id="event_match_{{event.id}}"></span>{{event.creation_date}} - {{event.type.value}} - {{event.vector.value}} - {{event.name}}</label></div>
@@ -177,8 +182,8 @@
                         {% else %}
                             No internal collection events.
                         {% endif %}
-                      </div>
-                      <div class="tab-pane" id="closed-events">
+                        </div>
+                        <div class="tab-pane fade" id="closed-events" role="tabpanel" aria-labelledby="closed-events-tab">
                         {% if closed_events %}
                             {% for event in closed_events %}
                                 <div class="radio" id="event_container_div_{{event.id}}"><label><input type="radio" name="event" value="{{event.id}}" id="option_{{event.id}}" onclick="toggleNewEventDialog();showEventSaveButton()"><span id="event_match_{{event.id}}"></span>{{event.creation_date}} - {{event.type.value}} - {{event.vector.value}} - {{event.name}}</label></div>
@@ -187,10 +192,10 @@
                                 <button type="button" class="btn btn-link" id="load-more-events-btn" onclick="loadMoreClosedEvents()">Show more...</button>
                             {% endif %}
                         {% else %}
-                          No closed events.
+                            No closed events.
                         {% endif %}
-                      </div>
-                     </div>
+                        </div>
+                    </div>
                 <br>
                     <div class="radio modal-body" id="event-secondary-container">
                         <label><input type="radio" name="event" value="NEW" id="option_NEW" onclick="toggleNewEventDialog();showEventSaveButton();autofill_event_name()"> New Event </label>

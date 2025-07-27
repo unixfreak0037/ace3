@@ -15,7 +15,7 @@ def initialize_dispositions():
     DISPOSITIONS = {
         DISPOSITION_OPEN: {
             "rank": 0,
-            "css": "dark",
+            "css": "light",
             "show_save_to_event": False,
         }
     }

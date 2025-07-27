@@ -75,13 +75,6 @@
                                         $('#copy_action_{{unique_reference}}').effect("pulsate", {times: 3}, 500);
                                     });
                                 </script>
-                                
-                                {# tags #}
-                                {% for tag in alert_tags %}
-                                    {% if tag.level != 'hidden' %}
-                                        <span class="badge text-bg-{{tag.css_class}}" style="cursor:pointer" onmousedown="set_filters([{'name': 'Tag', 'inverted': false, 'values': ['{{tag.name}}']}])">{{tag}}</span>{% if tag.name.lower().startswith('atos') %} 🤡 {% endif %}
-                                    {% endif %}
-                                {% endfor %}
                                 {% for sim in alert.similar_alerts() %}
                                 <a href="{{ url_for('analysis.index', direct=sim.uuid) }}">
                                     <span class="badge text-bg-{{dispositions[sim.disposition]['css']}}"><small>{{sim.disposition}} {{sim.percent}}%</small></span>

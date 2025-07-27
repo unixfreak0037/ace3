@@ -4,7 +4,8 @@
     <!-- control panel -->
     <div class="row">
         <div class="col-md-12">
-            <button id="btn-remove-alerts" type="button" class="btn btn-default btn-sm"><span class="bi bi-x"></span> Remove Alert(s)</button>
+            <button id="btn-remove-alerts" type="button" class="btn btn-outline-dark"><span class="bi bi-x"></span> Remove Alert(s)</button>
+            <button id="btn-export-events" type="button" class="btn btn-outline-dark" onclick="export_events_to_csv();"><span class="bi bi-filetype-csv"></span> Export to CSV</button>
         </div>
     </div>
 </div>
@@ -12,10 +13,10 @@
     <div class="col-md-12">
         <div class="row">
             <div class="col-md-4">
-                <button type="button" id="btn-edit-filter" class="btn btn-default btn-sm" data-toggle="modal" data-target="#filter_modal">Edit Filters</button>
-                <button type="button" id="btn-reset-filters" class="btn btn-default btn-sm">Reset Filters</button>
-                <button type="button" id="btn-export-events" class="btn btn-default btn-sm" style="display: none" onclick="export_events_to_csv();">Export Events to CSV</button>
-                <button type="button" id="btn-show-add-event-tags" class="btn btn-default btn-sm" data-toggle="modal" data-target="#event_tag_modal" data-page="management" style="display: none"><span class="bi bi-tags"></span>  Add Tag(s)</button>
+                <span class="badge label-special" style="cursor:pointer" id="btn-edit-filter" data-bs-toggle="modal" data-bs-target="#filter_modal">Edit Filters</span>
+                <span class="badge label-special" style="cursor:pointer" id="btn-reset-filters">Reset Filters</span>
+                <span class="badge label-special" style="cursor:pointer" id="btn-show-add-event-tags" data-bs-toggle="modal" data-bs-target="#event_tag_modal"><span class="bi bi-tags"></span>  Add Tag(s)</span>
+                <!--<button type="button" id="btn-show-add-event-tags" class="btn btn-default btn-sm" data-toggle="modal" data-target="#event_tag_modal" data-page="management" style="display: none"></button>-->
             </div>
         </div>
     </div>
@@ -92,15 +93,13 @@
     </div>
 </div>
 
-
-
-<div class="modal fade" id="filter_modal" tabindex="-1" role="dialog" aria-labelledby="filter_modal_label" aria-hidden="true">
+<div class="modal fade modal-lg" id="filter_modal" tabindex="-1" role="dialog" aria-labelledby="filter_modal_label" aria-hidden="true">
     <form id="frm-filter" method="POST" action="{{url_for('events.manage')}}">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-                <h4 class="modal-title" id="filter_modal_label">Edit Filter</h4>
+                <h1 class="modal-title fs-5" id="filter_modal_label">Edit Filter</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <table style="width:100%;table-layout:auto;">
@@ -234,8 +233,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">Nevermind</button>
-                <button type="submit" class="btn btn-primary" id="btn-apply-filter">Apply</button>
+                <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Nevermind</button>
+                <button type="submit" class="btn btn-outline-primary" id="btn-apply-filter">Apply</button>
             </div>
         </div>
     </div>
