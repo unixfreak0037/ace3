@@ -278,7 +278,7 @@ GLOBAL_ENV = {
     ),
     G_EMAIL_ARCHIVE_SERVER_ID: GlobalEnvironmentSetting(
         name=G_EMAIL_ARCHIVE_SERVER_ID, value=None, description="archive server id for this server",
-    )
+    ),
 }
 
 def g(name: str) -> str:
@@ -344,7 +344,6 @@ def get_base_dir() -> str:
 
 def get_temp_dir() -> str:
     return g(G_TEMP_DIR)
-
 
 def initialize_base_dir(saq_home: Optional[str] = None):
     # optional override from the environment
@@ -632,7 +631,7 @@ def initialize_environment(
     # we can globally disable semaphores with this flag
     set_g(
         G_SEMAPHORES_ENABLED,
-        get_config_value(CONFIG_GLOBAL, CONFIG_GLOBAL_ENABLE_SEMAPHORES),
+        get_config_value_as_boolean(CONFIG_GLOBAL, CONFIG_GLOBAL_ENABLE_SEMAPHORES),
     )
 
     # some settings can be set to PROMPT
@@ -776,5 +775,8 @@ def initialize_environment(
 
     from saq.monitor import initialize_monitoring
     initialize_monitoring()
+
+    from saq.integration.integration_loader import load_integrations
+    load_integrations()
 
     logging.debug("SAQ initialized")

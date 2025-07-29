@@ -224,6 +224,11 @@ COPY --chown=ace:ace tests /opt/ace/tests
 COPY --chown=ace:ace etc /opt/ace/etc
 COPY --chown=ace:ace hunts /opt/ace/hunts
 
+# install all available integrations
+# note that all integrations are installed even if they are disabled in the config
+COPY --chown=ace:ace integrations /opt/ace/integrations
+RUN /opt/ace/bin/install_integrations.sh
+
 USER ace
 WORKDIR /opt/ace
 VOLUME [ "/opt/ace/data", "/opt/ace/etc/yara", "/opt/ace/hunts", "/opt/ace/etc/collection" ]

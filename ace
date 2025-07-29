@@ -777,24 +777,12 @@ def correlate(args):
             current_root.event_time = root.event_time
             current_root.details = root.details
 
-        # if this is a file then we need to copy it over to the storage directory
-        #if o_type == F_FILE:
-            #dest_path = os.path.join(current_root.storage_dir, os.path.basename(o_value))
-            #try:
-                #logging.debug("copying {} to {}".format(o_value, dest_path))
-                #shutil.copy(o_value, dest_path)
-            #except Exception as e:
-                #logging.error("unable to copy {} to {} for analysis: {}".format(o_value, dest_path, e))
-                #sys.exit(1)
-
-            #o_value = os.path.basename(o_value)
+        if o_type == F_FILE:
+            observable = current_root.add_file_observable(o_value, volatile=args.volatile)
+        else:
+            observable = current_root.add_observable_by_spec(o_type, o_value, reference_time, volatile=args.volatile)
 
         if observable is not None:
-            if o_type == F_FILE:
-                observable = current_root.add_file_observable(o_value, volatile=args.volatile)
-            else:
-                observable = current_root.add_observable(o_type, o_value, reference_time, volatile=args.volatile)
-
             for directive in args.directives:
                 observable.add_directive(directive)
 
@@ -3210,21 +3198,13 @@ remove_bro_http_whitelist_parser.add_argument('cidr', help="The network CIDR to 
 remove_bro_http_whitelist_parser.set_defaults(func=remove_bro_http_whitelist)
 
 def list_available_modules(args):
-    from saq.engine.module_loader import load_module
+    from saq.engine.engine_configuration import EngineConfiguration
+    from saq.engine.configuration_manager import ConfigurationManager
+    configuration_manager = ConfigurationManager(EngineConfiguration(engine_type=EngineType.LOCAL, single_threaded_mode=True))
+    configuration_manager.load_modules()
 
-    result = {}
-
-    for section in get_config().keys():
-        if not section.startswith('analysis_module_'):
-            continue
-
-        if section in get_config()['disabled_modules'] and get_config()['disabled_modules'].getboolean(section):
-            continue
-
-        result[section] = load_module(section)
-
-    for key in sorted(result.keys()):
-        print('{: <35}{}'.format(key[len('analysis_module_'):], result[key].__doc__ if result[key].__doc__ is not None else ''))
+    for module in sorted(configuration_manager.analysis_modules, key=lambda x: x.module_id):
+        print(f"{module.module_id}")
 
     sys.exit(0)
 

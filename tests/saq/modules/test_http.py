@@ -12,7 +12,7 @@ from saq.engine.core import Engine
 from saq.engine.engine_configuration import EngineConfiguration
 from saq.engine.enums import EngineExecutionMode
 from saq.environment import get_local_timezone
-from saq.integration import integration_enabled
+from saq.integration.legacy import integration_enabled
 
 from flask import url_for
 

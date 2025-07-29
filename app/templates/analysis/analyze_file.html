@@ -6,13 +6,19 @@
     <h3>Alert Info</h3>
     <table style="width:400px;table-layout:auto;margin-bottom:40px;">
       <tr>
-        <th style="padding-right:10px;">Insert Date</th>
+        <th style="padding-right:10px;">
+          Insert Date
+          <a href="#" tabindex="0" class="ms-1" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="right" title="Insert Date Help" data-bs-content="The date and time when this alert should be recorded in the system. Use YYYY-MM-DD HH:MM:SS format."><i class="bi bi-question-circle"></i></a>
+        </th>
         <td style="width:100%;padding-bottom:4px;">
           <input type="text" class="form-control" id="new_alert_insert_date" name="new_alert_insert_date" value="{{date}}"/>
         </td>
       </tr>
       <tr>
-        <th style="padding-right:10px;">Timezone</th>
+        <th style="padding-right:10px;">
+          Timezone
+          <a href="#" tabindex="0" class="ms-1" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="right" title="Timezone Help" data-bs-content="Select the timezone for this alert. This affects how timestamps are interpreted and displayed in the system."><i class="bi bi-question-circle"></i></a>
+        </th>
         <td style="width:100%;padding-bottom:4px;">
           <select class="form-control" name="timezone">
           {% for timezone in timezones %}
@@ -22,19 +28,28 @@
         </td>
       </tr>
       <tr>
-        <th style="padding-right:10px;">Alert Type</th>
+        <th style="padding-right:10px;">
+          Alert Type
+          <a href="#" tabindex="0" class="ms-1" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="right" title="Alert Type Help" data-bs-content="Categorizes the type of alert being created. 'Manual' indicates this alert was created manually by an analyst."><i class="bi bi-question-circle"></i></a>
+        </th>
         <td style="width:100%;padding-bottom:4px;">
           <input type="text" class="form-control" name="new_alert_type" value="manual"/>
         </td>
       </tr>
       <tr>
-        <th style="padding-right:10px;">Description</th>
+        <th style="padding-right:10px;">
+          Description
+          <a href="#" tabindex="0" class="ms-1" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="right" title="Description Help" data-bs-content="The title of the alert as seen on the alert management page."><i class="bi bi-question-circle"></i></a>
+        </th>
         <td style="width:100%;padding-bottom:4px;">
           <input type="text" class="form-control" name="new_alert_description" value="Manual Correlation"/>
         </td>
       </tr>
       <tr>
-        <th style="padding-right:10px;">Queue</th>
+        <th style="padding-right:10px;">
+          Queue
+          <a href="#" tabindex="0" class="ms-1" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="right" title="Queue Help" data-bs-content="Determines which analysis queue this alert will be assigned to. Different queues may have different processing priorities and analyst assignments."><i class="bi bi-question-circle"></i></a>
+        </th>
         <td style="width:100%;padding-bottom:4px;">
           <select class="form-control" style="width:100%;" name="new_alert_queue">
             <option value="default" {% if queue == "default" %}SELECTED{% endif %}>default</option>
@@ -46,7 +61,10 @@
         </td>
       </tr>
       <tr>
-        <th style="padding-right:10px;">Target ACE Node</th>
+        <th style="padding-right:10px;">
+          Node
+          <a href="#" tabindex="0" class="ms-1" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="right" title="Node Help" data-bs-content="Select which ACE node should process this alert. Different nodes may be responsible for different network segments or organizational units."><i class="bi bi-question-circle"></i></a>
+        </th>
         <td style="width:100%;padding-bottom:4px;">
           <select class="form-control" name="target_node_data">
           {% for node_id, node_name, node_location, company_id, company_name in available_nodes %}
@@ -59,10 +77,22 @@
     <h3>Observables</h3>
     <table style="width:100%;table-layout:auto;" id="new_alert_observables">
       <tr>
-        <th style="width:15%;padding-bottom:4px;">Time</th>
-        <th style="width:15%;">Type<span style="color: #ff0000">*</span></th>
-        <th style="width:45%;">Value<span style="color: #ff0000">*</span></th>
-        <th style="width:25%;">Directives</th>
+        <th style="width:15%;padding-bottom:4px;">
+          Time
+          <a href="#" tabindex="0" class="ms-1" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="right" title="Time Help" data-bs-content="Optional timestamp for when this observable was first seen or occurred. Leave blank to use the alert insert time."><i class="bi bi-question-circle"></i></a>
+        </th>
+        <th style="width:15%;">
+          Type<span style="color: #ff0000">*</span>
+          <a href="#" tabindex="0" class="ms-1" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="right" title="Type Help" data-bs-content="The type of observable being added (file, URL, IP address, etc.). This determines how the value will be processed and analyzed."><i class="bi bi-question-circle"></i></a>
+        </th>
+        <th style="width:45%;">
+          Value<span style="color: #ff0000">*</span>
+          <a href="#" tabindex="0" class="ms-1" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="right" title="Value Help" data-bs-content="The actual observable data. For files, upload the file. For other types, enter the specific value (IP, URL, hash, etc.). Note that some types may require multiple values."><i class="bi bi-question-circle"></i></a>
+        </th>
+        <th style="width:25%;">
+          Directives
+          <a href="#" tabindex="0" class="ms-1" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="right" title="Directives Help" data-bs-content="Optional analysis directives that control how this observable should be processed. Multiple directives can be selected."><i class="bi bi-question-circle"></i></a>
+        </th>
         <th></th>
       </tr>
       <tr id="new_alert_observable_0">
@@ -120,4 +150,10 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/new_alert.js') }}?version={{ ACE_VERSION }}"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+    // Enable popovers
+    $('[data-bs-toggle="popover"]').popover();
+});
+</script>
 {% endblock %}
