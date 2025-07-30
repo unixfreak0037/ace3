@@ -66,7 +66,8 @@ def index():
     analysis = alert.root_analysis  # by default it's the alert
 
     if module_path is not None and observable is not None:
-        analysis = observable.analysis[module_path]
+        analysis = observable.get_and_load_analysis(module_path)
+        #analysis = observable.analysis[module_path]
 
     # load user comments for the alert
     try:

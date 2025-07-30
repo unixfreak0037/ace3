@@ -1,4 +1,5 @@
-{% for yara_result in analysis.details %}
+{% if analysis.details and 'scan_results' in analysis.details %}
+{% for yara_result in analysis.details['scan_results'] %}
 <div class="panel panel-default">
     <div class="panel-heading">
         <h3 class="panel-title">{{yara_result['rule']}}</h3>
@@ -12,11 +13,7 @@
         {% if yara_result['meta'] | count > 0 %}
         <tr>
             <td>meta</td>
-	    {% if ace_config['gui'].getboolean('hide_intel') %}
-	        <td>Hidden from public view.</td>
-	    {% else %}
                 <td>{{yara_result['meta']}}</td>
-	    {% endif %}
         </tr>
         {% endif %}
         {% if yara_result['tags'] | count > 0 %}
@@ -30,36 +27,37 @@
             <div class="panel panel-default">
                 <div class="panel-heading" role="tab" id="heading_{{yara_result['rule']}}">
                     <h4 class="panel-title">
-                        <a role="button" data-toggle="collapse" data-parent="#{{yara_result['rule']}}" href="#collapse_{{yara_result['rule']}}" aria-expanded="true" aria-controls="collapse_{{yara_result['rule']}}">
+                        <a role="button" data-bs-toggle="collapse" href="#collapse_{{yara_result['rule']}}" aria-expanded="false" aria-controls="collapse_{{yara_result['rule']}}">
                             String Matches
                         </a>
                     </h4>
                 </div>
-                <div id="collapse_{{yara_result['rule']}}" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="heading_{{yara_result['rule']}}">
+                <div id="collapse_{{yara_result['rule']}}" class="panel-collapse collapse" role="tabpanel" aria-labelledby="heading_{{yara_result['rule']}}">
                     <div class="panel-body">
                         <ul class="list-group">
-                        {# context was added later, older alerts do not have it #}
-			{% if ace_config['gui'].getboolean('hide_intel') %}
-			    Hidden from public view.
-			{% else %}
-				{% if 'context' in yara_result %}
-				    {% for s in yara_result['context'] %}
+                        {% if ace_config['gui'].getboolean('hide_intel') %}
+                            <li class="list-group-item">Hidden from public view.</li>
+                        {% else %}
+                            {% if 'context' in yara_result %}
+                                {% for s in yara_result['context'] %}
                         {% if s | count > 0 %}
-                            <li class="list-group-item">position <b>{{s[0]}}</b> string $<b>{{s[1]}}</b> value <b>{{s[2]}}</b><pre>{{s[3]}}</pre>
+                            <li class="list-group-item">
+                                position <b>{{s[0]}}</b> string $<b>{{s[1]}}</b> value <b>{{s[2]}}</b>
+                                <pre>{{s[3]}}</pre>
+                                {% if s|length > 4 %}
+                                    Disassembly<pre>{{s[4]|safe}}</pre>
+                                {% endif %}
+                            </li>
                         {% endif %}
-                        {% if s|length > 4 %}
-                            Disassembly<pre>{{s[4]|safe}}</pre>
+                                {% endfor %}
+                            {% else %}
+                                {% for s in yara_result['strings'] %}
+                                {% if s | count > 0 %}
+                                    <li class="list-group-item">position <b>{{s[0]}}</b> string $<b>{{s[1]}}</b> value <b>{{s[2]}}</b></li>
+                                {% endif %}
+                                {% endfor %}
+                            {% endif %}
                         {% endif %}
-                        </li>
-				    {% endfor %}
-				{% else %}
-				    {% for s in yara_result['strings'] %}
-					{% if s | count > 0 %}
-					    <li class="list-group-item">position <b>{{s[0]}}</b> string $<b>{{s[1]}}</b> value <b>{{s[2]}}</b></li>
-					{% endif %}
-				    {% endfor %}
-				{% endif %}
-			{% endif %}
                         </ul>
                     </div>
                 </div>
@@ -68,3 +66,6 @@
     </div>
 </div>
 {% endfor %}
+{% else %}
+<div class="alert alert-info">No Yara scan results available.</div>
+{% endif %}
