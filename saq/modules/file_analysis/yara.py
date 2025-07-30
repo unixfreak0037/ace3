@@ -30,9 +30,11 @@ class YaraScanResults_v3_4(Analysis):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.details = {
-            "scan_results": []
-        }
+        # Only initialize details if they haven't been loaded from external storage
+        if self.details is None:
+            self.details = {
+                "scan_results": []
+            }
 
     @property
     def scan_results(self):

@@ -57,6 +57,9 @@ class AnalysisPresenter:
     @property
     def details(self):
         """Returns the details object to be used when displaying in the GUI."""
+        # Ensure details are loaded from external storage if needed
+        if not self._analysis.details and self._analysis.external_details_path:
+            self._analysis.load_details()
         return self._analysis.details
     
     # Delegate access to the underlying analysis object for any other properties needed
@@ -137,6 +140,13 @@ class YaraAnalysisPresenter(AnalysisPresenter):
     @property
     def template_path(self) -> str:
         return "analysis/yara_analysis.html"
+
+class YaraScanResults_v3_4_Presenter(AnalysisPresenter):
+    """Presenter for YaraScanResults_v3_4."""
+    
+    @property
+    def template_path(self) -> str:
+        return "analysis/yara_analysis_v3_4.html"
 
 
 class EmailAnalysisPresenter(AnalysisPresenter):
@@ -246,6 +256,7 @@ register_presenter("WhoisAnalysis", WhoisAnalysisPresenter)
 register_presenter("NetworkIdentifierAnalysis", NetworkIdentifierAnalysisPresenter)
 register_presenter("X509Analysis", X509AnalysisPresenter)
 register_presenter("YaraAnalysis", YaraAnalysisPresenter)
+register_presenter("YaraScanResults_v3_4", YaraScanResults_v3_4_Presenter)
 register_presenter("EmailAnalysis", EmailAnalysisPresenter)
 register_presenter("IPDBAnalysis", IPDBAnalysisPresenter)
 register_presenter("BinaryAnalysis", BinaryAnalysisPresenter)
