@@ -57,9 +57,6 @@ class AnalysisPresenter:
     @property
     def details(self):
         """Returns the details object to be used when displaying in the GUI."""
-        # Ensure details are loaded from external storage if needed
-        if not self._analysis.details and self._analysis.external_details_path:
-            self._analysis.load_details()
         return self._analysis.details
     
     # Delegate access to the underlying analysis object for any other properties needed

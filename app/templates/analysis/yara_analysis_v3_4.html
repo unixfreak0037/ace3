@@ -1,5 +1,5 @@
-{% if analysis_presenter and analysis_presenter.details and 'scan_results' in analysis_presenter.details %}
-{% for yara_result in analysis_presenter.details['scan_results'] %}
+{% if analysis.details and 'scan_results' in analysis.details %}
+{% for yara_result in analysis.details['scan_results'] %}
 <div class="panel panel-default">
     <div class="panel-heading">
         <h3 class="panel-title">{{yara_result['rule']}}</h3>
@@ -13,11 +13,7 @@
         {% if yara_result['meta'] | count > 0 %}
         <tr>
             <td>meta</td>
-	    {% if ace_config['gui'].getboolean('hide_intel') %}
-	        <td>Hidden from public view.</td>
-	    {% else %}
                 <td>{{yara_result['meta']}}</td>
-	    {% endif %}
         </tr>
         {% endif %}
         {% if yara_result['tags'] | count > 0 %}
