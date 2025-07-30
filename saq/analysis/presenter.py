@@ -138,6 +138,13 @@ class YaraAnalysisPresenter(AnalysisPresenter):
     def template_path(self) -> str:
         return "analysis/yara_analysis.html"
 
+class YaraScanResults_v3_4_Presenter(AnalysisPresenter):
+    """Presenter for YaraScanResults_v3_4."""
+    
+    @property
+    def template_path(self) -> str:
+        return "analysis/yara_analysis_v3_4.html"
+
 
 class EmailAnalysisPresenter(AnalysisPresenter):
     """Presenter for EmailAnalysis."""
@@ -246,6 +253,7 @@ register_presenter("WhoisAnalysis", WhoisAnalysisPresenter)
 register_presenter("NetworkIdentifierAnalysis", NetworkIdentifierAnalysisPresenter)
 register_presenter("X509Analysis", X509AnalysisPresenter)
 register_presenter("YaraAnalysis", YaraAnalysisPresenter)
+register_presenter("YaraScanResults_v3_4", YaraScanResults_v3_4_Presenter)
 register_presenter("EmailAnalysis", EmailAnalysisPresenter)
 register_presenter("IPDBAnalysis", IPDBAnalysisPresenter)
 register_presenter("BinaryAnalysis", BinaryAnalysisPresenter)
