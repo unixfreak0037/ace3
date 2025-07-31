@@ -420,6 +420,9 @@ def initialize_data_dir():
 def get_data_dir() -> str:
     return g(G_DATA_DIR)
 
+def get_integration_dir() -> str:
+    return os.path.join(get_base_dir(), "integrations")
+
 def get_local_timezone() -> tzinfo:
     return g(G_LOCAL_TIMEZONE)
 
