@@ -1,8 +1,9 @@
+import importlib
 import logging
 import os
 import sys
 
-from saq.configuration.config import get_config
+from saq.configuration.config import get_config, get_config_value
 from saq.error import report_exception
 from saq.integration.integration_manager import is_integration_enabled
 from saq.integration.integration_util import get_integration_base_dir, get_integration_name_from_path
@@ -69,6 +70,7 @@ def load_integrations() -> bool:
             report_exception()
             result = False
 
+    initialize_integrations()
     return result
 
 def load_integration_component_src(dir_path: str) -> bool:
@@ -126,6 +128,22 @@ def load_integration_component_etc(dir_path: str) -> bool:
                 get_config().load_file(etc_file_path)
 
     return True
+
+def initialize_integrations():
+    """Initializes all integrations."""
+    for section in get_config().sections():
+        if not section.startswith("integration_"):
+            continue
+
+        #
+        # this is what allows any hooks defined in the integration to execute
+        #
+
+        try:
+            importlib.import_module(get_config_value(section, "module"))
+        except Exception as e:
+            logging.error(f"failed to import integration module {section}: {e}")
+            report_exception()
 
 def load_integration_from_directory(dir_path: str) -> bool:
     """Loads an ACE integration from a local directory.

@@ -60,6 +60,7 @@ requests
 requests-mock
 requests-ntlm
 requests-oauthlib
+shodan
 SQLAlchemy
 ssdeep
 tld

@@ -5,7 +5,7 @@ from saq.analysis.observable import Observable
 from saq.configuration.config import get_config_value_as_list
 from saq.constants import CONFIG_GLOBAL, CONFIG_GLOBAL_LOCAL_DOMAINS, CONFIG_GLOBAL_LOCAL_EMAIL_DOMAINS, F_URI_PATH, F_URL, F_USER_AGENT
 from saq.gui import ObservableActionSeparator, ObservableActionUrlCrawl, ObservableActionUrlscan
-from saq.observables.generator import map_observable_type
+from saq.observables.generator import register_observable_type
 from urlfinderlib.url import URL
 from urlfinderlib import find_urls
 
@@ -204,6 +204,6 @@ class URLObservable(Observable):
         if extracted_url:
             self.value = extracted_url
 
-map_observable_type(F_USER_AGENT, UserAgentObservable)
-map_observable_type(F_URI_PATH, URIPathObservable)
-map_observable_type(F_URL, URLObservable)
+register_observable_type(F_USER_AGENT, UserAgentObservable)
+register_observable_type(F_URI_PATH, URIPathObservable)
+register_observable_type(F_URL, URLObservable)

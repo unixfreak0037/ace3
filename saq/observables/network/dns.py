@@ -1,8 +1,9 @@
 import validators
+from saq.analysis.presenter.observable_presenter import ObservablePresenter, register_observable_presenter
 from saq.configuration.config import get_config_value_as_list
 from saq.constants import CONFIG_GLOBAL, CONFIG_GLOBAL_LOCAL_DOMAINS, CONFIG_GLOBAL_LOCAL_EMAIL_DOMAINS, F_FQDN
 from saq.observables.base import CaselessObservable, ObservableValueError
-from saq.observables.generator import map_observable_type
+from saq.observables.generator import register_observable_type
 from saq.util import is_subdomain
 
 class FQDNObservable(CaselessObservable):
@@ -46,4 +47,15 @@ class FQDNObservable(CaselessObservable):
 
         return False
 
-map_observable_type(F_FQDN, FQDNObservable)
+
+class FQDNObservablePresenter(ObservablePresenter):
+    """Presenter for FQDNObservable."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/fqdn_observable.html"
+
+
+register_observable_presenter(FQDNObservable, FQDNObservablePresenter)
+
+register_observable_type(F_FQDN, FQDNObservable)

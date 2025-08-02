@@ -1,5 +1,5 @@
 from saq.observables.base import ObservableValueError, DefaultObservable, CaselessObservable
-from saq.observables.generator import map_observable_type, create_observable
+from saq.observables.generator import register_observable_type, create_observable
 
 from saq.observables.asset import HostnameObservable, AssetObservable
 from saq.observables.email import MessageIDObservable, EmailAddressObservable, EmailBodyObservable, EmailConversationObservable, EmailDeliveryObservable, EmailHeaderObservable, EmailSubjectObservable, EmailXMailerObservable

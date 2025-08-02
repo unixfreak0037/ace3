@@ -3,7 +3,7 @@ import re
 from saq.analysis.observable import Observable
 from saq.constants import F_MAC_ADDRESS
 from saq.observables.base import ObservableValueError
-from saq.observables.generator import map_observable_type
+from saq.observables.generator import register_observable_type
 
 
 RE_MAC = re.compile(r'^([a-fA-F0-9]{2})[^a-fA-F0-9]*?([a-fA-F0-9]{2})[^a-fA-F0-9]*?([a-fA-F0-9]{2})[^a-fA-F0-9]*?([a-fA-F0-9]{2})[^a-fA-F0-9]*?([a-fA-F0-9]{2})[^a-fA-F0-9]*?([a-fA-F0-9]{2})[^a-fA-F0-9]*?$')
@@ -27,4 +27,4 @@ class MacAddressObservable(Observable):
         """Return the mac address formatted with the given separator. Defaults to :"""
         return sep.join(self.mac_parts)
 
-map_observable_type(F_MAC_ADDRESS, MacAddressObservable)
+register_observable_type(F_MAC_ADDRESS, MacAddressObservable)

@@ -45,7 +45,6 @@ def index():
                 comments[comment.uuid] = []
             comments[comment.uuid].append(comment)
 
-    logging.info(f"MARKER: alerts: {alerts}")
     return render_template(
         'events/index.html',
         event=event,

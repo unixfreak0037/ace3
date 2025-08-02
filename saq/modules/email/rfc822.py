@@ -7,11 +7,13 @@ import os
 import re
 import shutil
 from subprocess import PIPE, Popen
+from typing import Type, override
 import uuid
 
 import dateutil
 import pytz
 from saq.analysis.analysis import Analysis
+from saq.analysis.presenter.analysis_presenter import AnalysisPresenter, register_analysis_presenter
 from saq.constants import DIRECTIVE_EXTRACT_URLS, DIRECTIVE_ORIGINAL_EMAIL, DIRECTIVE_PREVIEW, DIRECTIVE_REMEDIATE, DIRECTIVE_RENAME_ANALYSIS, F_EMAIL_ADDRESS, F_EMAIL_CONVERSATION, F_EMAIL_DELIVERY, F_EMAIL_SUBJECT, F_EMAIL_X_MAILER, F_FILE, F_FQDN, F_IPV4, F_MESSAGE_ID, F_USER_AGENT, AnalysisExecutionResult, create_email_conversation, create_email_delivery
 from saq.email import decode_rfc2822, is_local_email_domain, normalize_email_address, normalize_message_id
 from saq.environment import get_base_dir, get_data_dir, get_local_timezone
@@ -422,6 +424,10 @@ class EmailAnalysis(Analysis):
 
 _PATTERN_RECEIVED_IPADDR = re.compile(r'from\s\S+\s\(([^)]+)\)\s', re.M)
 class EmailAnalyzer(AnalysisModule):
+    @override
+    def get_presenter_class(self) -> Type[AnalysisPresenter]:
+        return EmailAnalysisPresenter
+
     def verify_environment(self):
         self.verify_config_exists('whitelist_path')
         self.verify_path_exists(self.config['whitelist_path'])
@@ -1322,3 +1328,12 @@ class EmailAnalyzer(AnalysisModule):
 
         self.analyze_rfc822(_file)
         return AnalysisExecutionResult.COMPLETED
+
+class EmailAnalysisPresenter(AnalysisPresenter):
+    """Presenter for EmailAnalysis."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/email_analysis.html"
+
+register_analysis_presenter(EmailAnalysis, EmailAnalysisPresenter)

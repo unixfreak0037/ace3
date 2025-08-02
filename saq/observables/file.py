@@ -5,6 +5,7 @@ import os
 from subprocess import PIPE, Popen
 from typing import Optional, Union
 from saq.analysis.observable import Observable
+from saq.analysis.presenter.observable_presenter import ObservablePresenter, register_observable_presenter
 from saq.analysis.serialize.observable_serializer import KEY_VALUE
 from saq.analysis.root import RootAnalysis
 from saq.configuration.config import get_config, get_config_value_as_int
@@ -13,7 +14,7 @@ from saq.environment import g
 from saq.gui import ObservableActionCollectFile, ObservableActionDownloadFile, ObservableActionDownloadFileAsZip, ObservableActionFileRender, ObservableActionFileSendTo, ObservableActionSeparator, ObservableActionUploadToVt, ObservableActionViewAsHex, ObservableActionViewAsHtml, ObservableActionViewAsText, ObservableActionViewInBrowser, ObservableActionViewInVt
 from saq.integration.legacy import integration_enabled
 from saq.observables.base import CaselessObservable, ObservableValueError
-from saq.observables.generator import map_observable_type
+from saq.observables.generator import register_observable_type
 from saq.util.hashing import get_md5_hash_of_file, is_sha256_hex, sha256_file
 
 KEY_MD5_HASH = "md5_hash"
@@ -359,6 +360,42 @@ class FileObservable(Observable):
     def handle_relationship_added(self, source, event, target, relationship=None):
         pass
 
+
+class FileObservablePresenter(ObservablePresenter):
+    """Presenter for FileObservable."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/file_observable.html"
+
+    @property
+    def available_actions(self) -> list:
+        from saq.gui.observable_actions.file import (
+            ObservableActionDownloadFileAsZip,
+            ObservableActionViewAsHex,
+            ObservableActionViewAsText,
+            ObservableActionViewInBrowser,
+            ObservableActionFileSendTo,
+            ObservableActionFileRender,
+        )
+        from saq.gui import ObservableActionSeparator
+
+        result = [
+            ObservableActionDownloadFileAsZip(),
+            ObservableActionViewAsHex(),
+            ObservableActionViewAsText(),
+            ObservableActionViewInBrowser(),
+            ObservableActionFileSendTo(),
+            ObservableActionFileRender(),
+            ObservableActionSeparator(),
+        ]
+        result.extend(super().available_actions)
+        return result
+
+
+register_observable_presenter(FileObservable, FileObservablePresenter)
+
+
 class FilePathObservable(CaselessObservable):
     def __init__(self, *args, **kwargs):
         super().__init__(F_FILE_PATH, *args, **kwargs)
@@ -406,6 +443,27 @@ class FileLocationObservable(Observable):
     def jinja_template_path(self):
         return "analysis/file_location_observable.html"
 
+
+class FileLocationObservablePresenter(ObservablePresenter):
+    """Presenter for FileLocationObservable."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/file_location_observable.html"
+
+    @property
+    def available_actions(self) -> list:
+        from saq.gui.observable_actions.file import ObservableActionCollectFile
+        from saq.gui import ObservableActionSeparator
+
+        result = [ObservableActionCollectFile(), ObservableActionSeparator()]
+        result.extend(super().available_actions)
+        return result
+
+
+register_observable_presenter(FileLocationObservable, FileLocationObservablePresenter)
+
+
 class MD5Observable(CaselessObservable):
     def __init__(self, *args, **kwargs):
         super().__init__(F_MD5, *args, **kwargs)
@@ -450,6 +508,17 @@ class SHA1Observable(CaselessObservable):
         return result
 
 
+class SHA1ObservablePresenter(ObservablePresenter):
+    """Presenter for SHA1Observable."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/default_observable.html"
+
+
+register_observable_presenter(SHA1Observable, SHA1ObservablePresenter)
+
+
 class SHA256Observable(CaselessObservable):
     def __init__(self, *args, **kwargs):
         super().__init__(F_SHA256, *args, **kwargs)
@@ -475,10 +544,21 @@ class SHA256Observable(CaselessObservable):
         result.extend(super().jinja_available_actions)
         return result
 
-map_observable_type(F_FILE, FileObservable)
-map_observable_type(F_FILE_PATH, FilePathObservable)
-map_observable_type(F_FILE_NAME, FileNameObservable)
-map_observable_type(F_FILE_LOCATION, FileLocationObservable)
-map_observable_type(F_MD5, MD5Observable)
-map_observable_type(F_SHA1, SHA1Observable)
-map_observable_type(F_SHA256, SHA256Observable)
+
+class SHA256ObservablePresenter(ObservablePresenter):
+    """Presenter for SHA256Observable."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/sha256_observable.html"
+
+
+register_observable_presenter(SHA256Observable, SHA256ObservablePresenter)
+
+register_observable_type(F_FILE, FileObservable)
+register_observable_type(F_FILE_PATH, FilePathObservable)
+register_observable_type(F_FILE_NAME, FileNameObservable)
+register_observable_type(F_FILE_LOCATION, FileLocationObservable)
+register_observable_type(F_MD5, MD5Observable)
+register_observable_type(F_SHA1, SHA1Observable)
+register_observable_type(F_SHA256, SHA256Observable)

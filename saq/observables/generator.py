@@ -9,7 +9,7 @@ from saq.observables.base import DefaultObservable, ObservableValueError
 
 OBSERVABLE_TYPE_MAPPING: dict[str, Type[Observable]] = {}
 
-def map_observable_type(_type: str, cls: Type[Observable]):
+def register_observable_type(_type: str, cls: Type[Observable]):
     # not allowed to remap an existing observable
     if _type in OBSERVABLE_TYPE_MAPPING:
         raise RuntimeError(f"ERROR: remapping observable type {_type} from {OBSERVABLE_TYPE_MAPPING[_type]} to {cls}")

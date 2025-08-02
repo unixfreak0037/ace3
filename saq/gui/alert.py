@@ -1,6 +1,8 @@
 import logging
 import os
 import pytz
+from saq import RootAnalysis
+from saq.analysis.presenter import register_analysis_presenter, AnalysisPresenter
 from saq.configuration.config import get_config_value, get_config_value_as_list
 from saq.constants import CONFIG_CUSTOM_ALERTS, CONFIG_CUSTOM_ALERTS_BACKWARDS_COMPAT, CONFIG_CUSTOM_ALERTS_DIR, CONFIG_CUSTOM_ALERTS_TEMPLATE_DIR, EVENT_TIME_FORMAT_TZ
 from saq.database.model import Alert
@@ -110,3 +112,109 @@ class GUIAlert(Alert):
            into the database."""
         return self.event_time.astimezone(self.display_timezone).strftime(EVENT_TIME_FORMAT_TZ)
 
+class GUIAlertPresenter(AnalysisPresenter):
+    """Presenter for GUIAlert that handles complex template logic."""
+
+    @property
+    def template_path(self) -> str:
+        """Returns the template path with complex logic from the original GUIAlert."""
+        # Check if this is a GUIAlert with specific template logic
+        if not hasattr(self._analysis, "alert_type"):
+            return "analysis/alert.html"
+
+        # Complex template selection logic from original GUIAlert
+        try:
+            from saq.configuration import get_config_value
+            from saq.constants import (
+                CONFIG_CUSTOM_ALERTS,
+                CONFIG_CUSTOM_ALERTS_BACKWARDS_COMPAT,
+                CONFIG_CUSTOM_ALERTS_TEMPLATE_DIR,
+                CONFIG_CUSTOM_ALERTS_DIR,
+            )
+            from saq.environment import get_base_dir
+            import os
+            import logging
+
+            logging.debug(
+                f"checking for custom template for {self._analysis.alert_type}"
+            )
+
+            # first check backward compatible config to see if there is already a template set for this alert_type value
+            backwards_compatible = get_config_value(
+                CONFIG_CUSTOM_ALERTS_BACKWARDS_COMPAT, self._analysis.alert_type
+            )
+            if backwards_compatible:
+                logging.debug(
+                    "using backwards compatible template %s for %s",
+                    backwards_compatible,
+                    self._analysis.alert_type,
+                )
+                return backwards_compatible
+
+            base_template_dir = get_config_value(
+                CONFIG_CUSTOM_ALERTS, CONFIG_CUSTOM_ALERTS_TEMPLATE_DIR
+            )
+            dirs = get_config_value(
+                CONFIG_CUSTOM_ALERTS, CONFIG_CUSTOM_ALERTS_DIR
+            ).split(";")
+
+            # gather all available custom templates into dictionary with their parent directory
+            files = {}
+            for directory in dirs:
+                files.update(
+                    {
+                        file: directory
+                        for file in os.listdir(
+                            os.path.join(get_base_dir(), base_template_dir, directory)
+                        )
+                    }
+                )
+
+            # alert_type switch logic
+            alert_subtype = self._analysis.alert_type.replace(" - ", "_").replace(
+                " ", "_"
+            )
+            while True:
+                if f"{alert_subtype}.html" in files.keys():
+                    logging.debug(f"found custom template {alert_subtype}.html")
+                    return os.path.join(
+                        files[f"{alert_subtype}.html"], f"{alert_subtype}.html"
+                    )
+
+                if "_" not in alert_subtype:
+                    break
+                else:
+                    alert_subtype = alert_subtype.rsplit("_", 1)[0]
+
+            logging.debug(
+                f"template not found for {self._analysis.alert_type}; defaulting to alert.html"
+            )
+
+        except Exception as e:
+            logging.debug(e)
+            pass
+
+        # Default fallback
+        return "analysis/alert.html"
+
+    @property
+    def analysis_overview(self) -> str:
+        """Returns HTML analysis overview."""
+        result = "<ul>"
+        for observable in self._analysis.observables:
+            result += "<li>{0}</li>".format(observable)
+        result += "</ul>"
+        return result
+
+    @property
+    def event_time(self) -> str:
+        """Returns formatted event time."""
+        from saq.constants import EVENT_TIME_FORMAT_TZ
+
+        if hasattr(self._analysis, "event_time") and self._analysis.event_time:
+            return self._analysis.event_time.strftime(EVENT_TIME_FORMAT_TZ)
+        return ""
+
+register_analysis_presenter(RootAnalysis, GUIAlertPresenter)
+#register_analysis_presenter(GUIAlert, GUIAlertPresenter)
+#register_analysis_presenter(Alert, GUIAlertPresenter)

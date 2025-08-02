@@ -3,7 +3,7 @@ class ObservableAction:
     def __init__(self):
         self.name = None
         self.description = None
-        self.jinja_action_path = None
+        self.action_path = None
         self.icon = None
         self.display = True
 

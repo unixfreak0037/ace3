@@ -2,10 +2,11 @@ import ipaddress
 
 import iptools
 from saq.analysis.observable import Observable
+from saq.analysis.presenter.observable_presenter import ObservablePresenter, register_observable_presenter
 from saq.constants import F_IPV4, F_IPV4_CONVERSATION, F_IPV4_FULL_CONVERSATION, G_MANAGED_NETWORKS, parse_ipv4_conversation, parse_ipv4_full_conversation
 from saq.environment import g_list
 from saq.observables.base import ObservableValueError
-from saq.observables.generator import map_observable_type
+from saq.observables.generator import register_observable_type
 
 
 class IPv4Observable(Observable):
@@ -59,6 +60,18 @@ class IPv4Observable(Observable):
 
         # otherwise it has to match exactly
         return self.value == value
+
+
+class IPv4ObservablePresenter(ObservablePresenter):
+    """Presenter for IPv4Observable."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/ipv4_observable.html"
+
+
+register_observable_presenter(IPv4Observable, IPv4ObservablePresenter)
+
 
 class IPv4ConversationObservable(Observable):
     def __init__(self, *args, **kwargs):
@@ -117,6 +130,6 @@ class IPv4FullConversationObservable(Observable):
     def dest_port(self):
         return self._dest_port
 
-map_observable_type(F_IPV4, IPv4Observable)
-map_observable_type(F_IPV4_CONVERSATION, IPv4ConversationObservable)
-map_observable_type(F_IPV4_FULL_CONVERSATION, IPv4FullConversationObservable)
+register_observable_type(F_IPV4, IPv4Observable)
+register_observable_type(F_IPV4_CONVERSATION, IPv4ConversationObservable)
+register_observable_type(F_IPV4_FULL_CONVERSATION, IPv4FullConversationObservable)

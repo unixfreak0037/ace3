@@ -1,6 +1,7 @@
 from saq.analysis.observable import Observable
+from saq.analysis.presenter.observable_presenter import ObservablePresenter, register_observable_presenter
 from saq.constants import F_INDICATOR
-from saq.observables.generator import map_observable_type
+from saq.observables.generator import register_observable_type
 
 
 class IndicatorObservable(Observable):
@@ -20,4 +21,15 @@ class IndicatorObservable(Observable):
         result = []
         return result
 
-map_observable_type(F_INDICATOR, IndicatorObservable)
+
+class IndicatorObservablePresenter(ObservablePresenter):
+    """Presenter for IndicatorObservable."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/indicator_observable.html"
+
+
+register_observable_presenter(IndicatorObservable, IndicatorObservablePresenter)
+
+register_observable_type(F_INDICATOR, IndicatorObservable)

@@ -1,5 +1,6 @@
 from saq.analysis.analysis import Analysis
 from saq.analysis.observable import Observable
+from saq.analysis.presenter.analysis_presenter import AnalysisPresenter, register_analysis_presenter
 from saq.constants import F_ASSET, AnalysisExecutionResult
 from saq.modules import AnalysisModule
 
@@ -213,3 +214,12 @@ class AssetAnalyzer(AnalysisModule):
         analysis.os = self.get_os(asset)
 
         return AnalysisExecutionResult.COMPLETED
+
+class AssetAnalysisPresenter(AnalysisPresenter):
+    """Presenter for AssetAnalysis."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/asset_analysis.html"
+
+register_analysis_presenter(AssetAnalysis, AssetAnalysisPresenter)

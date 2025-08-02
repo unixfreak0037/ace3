@@ -1,6 +1,6 @@
 from saq.analysis.observable import Observable
 from saq.constants import F_TEST
-from saq.observables.generator import map_observable_type
+from saq.observables.generator import register_observable_type
 
 
 class TestObservable(Observable):
@@ -8,4 +8,4 @@ class TestObservable(Observable):
     def __init__(self, *args, **kwargs): 
         super().__init__(F_TEST, *args, **kwargs)
 
-map_observable_type(F_TEST, TestObservable)
+register_observable_type(F_TEST, TestObservable)

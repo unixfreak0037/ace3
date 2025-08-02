@@ -47,6 +47,7 @@ services:
         volumes: *common-volumes
         cap_add:
             - SYS_PTRACE
+        hostname: ace
         networks: 
             - dev
 
@@ -88,6 +89,7 @@ services:
         volumes: *common-volumes
         cap_add:
             - SYS_PTRACE
+        hostname: ace
         networks: 
             - dev
 
@@ -155,7 +157,7 @@ services:
         command: /bin/bash -c "/opt/ace/docker/startup/start_debug_gui.sh"
         restart: always
         volumes: *common-volumes
-        hostname: ace-http-debug
+        hostname: ace
         ports:
             - "5000:5000"
         cap_add:

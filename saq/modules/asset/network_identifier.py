@@ -4,6 +4,7 @@ import os
 
 import iptools
 from saq.analysis import Analysis
+from saq.analysis.presenter.analysis_presenter import AnalysisPresenter, register_analysis_presenter
 from saq.configuration.config import get_config_value
 from saq.constants import F_ASSET, F_IPV4, AnalysisExecutionResult
 from saq.environment import get_base_dir
@@ -94,3 +95,14 @@ class NetworkIdentifier(AnalysisModule):
             analysis.add_observable_by_spec(F_ASSET, observable.value)
 
         return AnalysisExecutionResult.COMPLETED
+
+
+class NetworkIdentifierAnalysisPresenter(AnalysisPresenter):
+    """Presenter for NetworkIdentifierAnalysis."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/network_identifier.html"
+
+
+register_analysis_presenter(NetworkIdentifierAnalysis, NetworkIdentifierAnalysisPresenter)
