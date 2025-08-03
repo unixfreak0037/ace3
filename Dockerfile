@@ -125,6 +125,7 @@ RUN mkdir -p /opt/signatures /opt/ace /venv /opt/misc && \
 RUN python3 -m pip config set global.cert /etc/ssl/certs/ca-certificates.crt && \
     python3 -m pip install --no-cache-dir pip virtualenv --upgrade
 
+# do I still need to do this?
 # build and install YARA with all required features
 RUN git clone https://github.com/VirusTotal/yara.git /tmp/yara && \
     cd /tmp/yara && \
@@ -166,7 +167,7 @@ RUN python3 -m virtualenv --python=python3 /venv && \
     pip config set global.cert /etc/ssl/certs/ca-certificates.crt && \
     pip install --no-cache-dir setuptools pycryptodome && \
     pip install --no-cache-dir -r /venv/python-requirements.txt && \
-    pip install --no-cache-dir yara-python yara-scanner~=1.1.9
+    pip install --no-cache-dir yara-python git+https://github.com/unixfreak0037/yara_scanner_v2.git
 
 # configure bash environment
 RUN echo 'source /venv/bin/activate' >> /home/ace/.bashrc && \

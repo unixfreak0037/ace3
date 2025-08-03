@@ -14,6 +14,7 @@ and this project (tries to) adheres to [Semantic Versioning](https://semver.org/
 ### Changed
 
 - updated to the lastest version of yara.
+- using new yara_scanner_v2 project (fixed support for include diretive)
 
 ### Removed
 
