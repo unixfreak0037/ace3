@@ -3,7 +3,7 @@ FROM python:3.12-bookworm
 # add metadata labels
 LABEL maintainer="John Davison <unixfreak0037@gmail.com>"
 LABEL description="Analysis Correlation Engine"
-LABEL version="3.0"
+LABEL version="3.0.0"
 
 # env vars
 ENV SAQ_HOME=/opt/ace \
