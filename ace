@@ -39,6 +39,7 @@ from saq.engine.enums import EngineExecutionMode, EngineType
 from saq.environment import g, g_boolean, g_int, g_obj, get_base_dir, initialize_environment
 from saq.error.reporting import report_exception
 from saq.remediation import REMEDIATION_STATUS_IN_PROGRESS, REMEDIATION_STATUS_NEW
+from saq.util.uuid import storage_dir_from_uuid
 
 parser = argparse.ArgumentParser(description="Analysis Correlation Engine")
 parser.add_argument('--saq-home', required=False, dest='saq_home', default=None,
@@ -1564,6 +1565,9 @@ def import_alerts(args):
     import saq
     from saq.constants import ANALYSIS_MODE_CORRELATION
     from saq.database import Alert
+    from saq import RootAnalysis
+    from saq.environment import get_base_dir, get_data_dir, g
+    from saq.database.util.alert import ALERT, get_alert_by_uuid
 
     for _dir in args.dirs:
         json_path = os.path.join(_dir, 'data.json')
@@ -1571,52 +1575,40 @@ def import_alerts(args):
             logging.error("{} does not exist".format(json_path))
             continue
 
-        # load the alert
-        alert = Alert()
-        alert.storage_dir = _dir
-        if not alert.load():
+        root = RootAnalysis(storage_dir=_dir)
+        if not root.load():
             logging.error("unable to load {}: try running saq upgrade {}".format(_dir, _dir))
             continue
 
-        # has this already already been imported?
-        dest_dir = os.path.join(saq.SAQ_HOME, get_config()['global']['data_dir'], saq.SAQ_NODE, alert.uuid[0:3], alert.uuid)
-        if os.path.exists(dest_dir):
-            logging.error("ACE storage directory {} already exists".format(dest_dir))
+        target_storage_dir = storage_dir_from_uuid(root.uuid)
+
+        # copy the root analysis into the system
+        shutil.copytree(_dir, target_storage_dir)
+
+        # load the alert
+        root = RootAnalysis(storage_dir=target_storage_dir)
+        if not root.load():
+            logging.error("unable to load {}: try running saq upgrade {}".format(target_storage_dir, target_storage_dir))
             continue
 
-        try:
-            # copy that directory over
-            shutil.copytree(_dir, dest_dir)
-        except Exception as e:
-            logging.error("unable to copy {0} to {1}: {2}".format(
-                _dir, dest_dir, str(e)))
-            continue
-
-        # remove the old database id if it has one
-        alert.id = None
-        # and change the storage area
-        alert.storage_dir = os.path.relpath(dest_dir, start=saq.SAQ_HOME)
+        ALERT(root)
+        alert = get_alert_by_uuid(root.uuid)
 
         # are we resetting the alerts?
-        if args.reset:
-            alert.reset()
+        #if args.reset:
+            #alert.reset()
 
         # change a few more things
-        alert.location = saq.SAQ_NODE
-        alert.company_id = get_config()['global'].getint('company_id')
-        alert.company_name = get_config()['global']['company_name']
+        alert.location = g(G_SAQ_NODE)
+        alert.company_id = g(G_COMPANY_ID)
+        alert.company_name = g(G_COMPANY_NAME)
         alert.analysis_mode = ANALYSIS_MODE_CORRELATION
-        alert.disposition = None
-        alert.disposition_user_id = None
-        alert.disposition_time = None
-        alert.owner_id = None
-        alert.owner_time = None
 
         # sync it to the database
         alert.sync()
 
         # request analysis
-        alert.schedule()
+        alert.root_analysis.schedule()
 
         logging.info("imported alert {}".format(alert))
 
