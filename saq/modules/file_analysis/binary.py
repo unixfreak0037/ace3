@@ -1,6 +1,7 @@
 import logging
 import os
 from saq.analysis.analysis import Analysis
+from saq.analysis.presenter.analysis_presenter import AnalysisPresenter, register_analysis_presenter
 from saq.constants import DIRECTIVE_SANDBOX, F_FILE, AnalysisExecutionResult
 from saq.modules import AnalysisModule
 from saq.observables.file import FileObservable
@@ -91,3 +92,14 @@ class BinaryFileAnalyzer(AnalysisModule):
                     return AnalysisExecutionResult.COMPLETED
 
         return AnalysisExecutionResult.COMPLETED
+
+
+class BinaryAnalysisPresenter(AnalysisPresenter):
+    """Presenter for BinaryFileAnalysis."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/default_template.html"
+
+
+register_analysis_presenter(BinaryFileAnalysis, BinaryAnalysisPresenter)

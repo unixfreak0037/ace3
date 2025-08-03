@@ -1,6 +1,7 @@
+from saq.analysis.presenter.observable_presenter import ObservablePresenter, register_observable_presenter
 from saq.constants import F_USER
 from saq.observables.base import CaselessObservable
-from saq.observables.generator import map_observable_type
+from saq.observables.generator import register_observable_type
 
 
 class UserObservable(CaselessObservable):
@@ -25,4 +26,15 @@ class UserObservable(CaselessObservable):
         result.extend(super().jinja_available_actions)
         return result
 
-map_observable_type(F_USER, UserObservable)
+
+class UserObservablePresenter(ObservablePresenter):
+    """Presenter for UserObservable."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/user_observable.html"
+
+
+register_observable_presenter(UserObservable, UserObservablePresenter)
+
+register_observable_type(F_USER, UserObservable)

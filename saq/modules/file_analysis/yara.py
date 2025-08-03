@@ -10,6 +10,7 @@ from subprocess import PIPE, Popen
 
 import distorm3
 from saq.analysis.analysis import Analysis
+from saq.analysis.presenter.analysis_presenter import AnalysisPresenter, register_analysis_presenter
 from saq.configuration.config import get_config_value
 from saq.constants import AnalysisExecutionResult, CONFIG_YARA_SCANNER, CONFIG_YARA_SCANNER_SCAN_FAILURE_DIR, CONFIG_YARA_SCANNER_SIGNATURE_DIR, CONFIG_YARA_SCANNER_SOCKET_DIR, DIRECTIVE_NO_SCAN, DIRECTIVE_SANDBOX, F_FILE, F_INDICATOR, F_YARA_RULE, F_YARA_STRING, create_yara_string
 from saq.database import Observable as db_Observable
@@ -459,3 +460,14 @@ class YaraScanner_v3_4(AnalysisModule):
                     _file.whitelist()
 
         return AnalysisExecutionResult.COMPLETED
+
+
+class YaraScanResults_v3_4_Presenter(AnalysisPresenter):
+    """Presenter for YaraScanResults_v3_4."""
+    
+    @property
+    def template_path(self) -> str:
+        return "analysis/yara_analysis_v3_4.html"
+
+
+register_analysis_presenter(YaraScanResults_v3_4, YaraScanResults_v3_4_Presenter)

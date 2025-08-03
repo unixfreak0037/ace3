@@ -6,6 +6,7 @@ import os
 
 from saq import x509
 from saq.analysis import Analysis, RootAnalysis
+from saq.analysis.presenter.analysis_presenter import AnalysisPresenter, register_analysis_presenter
 from saq.constants import F_FILE, F_FQDN, F_SHA256, F_IPV4, F_URL, DIRECTIVE_CRAWL, AnalysisExecutionResult
 from saq.modules import AnalysisModule
 from saq.modules.file_analysis import FileTypeAnalysis
@@ -251,3 +252,14 @@ class X509Analyzer(AnalysisModule):
         analysis.add_file_observable(target_path)
 
         return AnalysisExecutionResult.COMPLETED
+
+
+class X509AnalysisPresenter(AnalysisPresenter):
+    """Presenter for X509Analysis."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/x509_file_analysis.html"
+
+
+register_analysis_presenter(X509Analysis, X509AnalysisPresenter)

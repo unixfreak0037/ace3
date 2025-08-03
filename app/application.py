@@ -9,6 +9,9 @@ import urllib
 
 from app.blueprints import register_blueprints
 
+from app.integration import register_integration_blueprints
+from saq.analysis.presenter import register_analysis_presenter
+from saq.analysis.presenter.analysis_presenter import unregister_analysis_presenter
 from saq.configuration.config import get_config_value
 from saq.constants import CONFIG_GLOBAL, CONFIG_GLOBAL_INSTANCE_TYPE, G_INSTANCE_TYPE
 from flask_config import get_flask_config
@@ -43,6 +46,19 @@ class CustomSQLAlchemy(SQLAlchemy):
         # add SSL (if configured)
         options.update(get_flask_config(get_config_value(CONFIG_GLOBAL, CONFIG_GLOBAL_INSTANCE_TYPE)).SQLALCHEMY_DATABASE_OPTIONS)
         SQLAlchemy.apply_driver_hacks(self, app, info, options)
+
+def initialize_presenters():
+    """Ensures that the appropriate presenters are registered for the current engine configuration."""
+    from saq.engine.configuration_manager import ConfigurationManager
+    from saq.engine.engine_configuration import EngineConfiguration
+    from saq.engine.enums import EngineType
+
+    configuration_manager = ConfigurationManager(EngineConfiguration(engine_type=EngineType.LOCAL, single_threaded_mode=True))
+    configuration_manager.load_modules()
+
+    for analysis_module in configuration_manager.analysis_modules:
+        # there isn't anythign to do here yet, but will soon
+        pass
 
 def create_app(testing: Optional[bool]=False):
 
@@ -80,6 +96,7 @@ def create_app(testing: Optional[bool]=False):
     executor.init_app(flask_app)
 
     register_blueprints(flask_app)
+    register_integration_blueprints(flask_app)
 
     # utility functions to encoding/decoding base64 to/from strings
     def s64decode(s):
@@ -132,5 +149,7 @@ def create_app(testing: Optional[bool]=False):
 
     # add the "do" template command
     flask_app.jinja_env.add_extension('jinja2.ext.do')
+
+    initialize_presenters()
 
     return flask_app

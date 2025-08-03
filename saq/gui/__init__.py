@@ -1,5 +1,5 @@
 from saq.gui.alert import GUIAlert
-from saq.gui.observable_actions.base import ObservableActionSeparator
+from saq.gui.observable_actions.base import ObservableActionSeparator, ObservableAction
 from saq.gui.observable_actions.sip import ObservableActionSetSIPIndicatorStatus_Analyzed, ObservableActionSetSIPIndicatorStatus_Informational, ObservableActionSetSIPIndicatorStatus_New
 from saq.gui.observable_actions.file import ObservableActionDownloadFile, ObservableActionDownloadFileAsZip, ObservableActionFileSendTo, ObservableActionViewAsHex, ObservableActionViewAsHtml, ObservableActionViewAsText, ObservableActionViewInBrowser, ObservableActionCollectFile, ObservableActionFileRender
 from saq.gui.observable_actions.vt import ObservableActionUploadToVt, ObservableActionViewInVt

@@ -3,7 +3,7 @@ import inspect
 import logging
 import os
 import time
-from typing import Optional, Type, Union
+from typing import TYPE_CHECKING, Optional, Type, Union
 from saq.analysis.analysis import Analysis
 from saq.analysis.interfaces import RootAnalysisInterface
 from saq.analysis.module_path import MODULE_PATH
@@ -19,6 +19,9 @@ from saq.filesystem.notification import FileWatcherMixin
 from saq.modules.config import AnalysisModuleConfig
 from saq.modules.config_backend import ConfigBackend, ConfigSection
 from saq.modules.context import AnalysisModuleContext
+
+if TYPE_CHECKING:
+    from saq.analysis.presenter import AnalysisPresenter
 
 
 class AnalysisModule(FileWatcherMixin):

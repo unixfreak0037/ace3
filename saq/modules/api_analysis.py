@@ -20,6 +20,7 @@ import time
 from typing import Union
 
 from saq.analysis import Analysis, Observable
+from saq.analysis.presenter.analysis_presenter import AnalysisPresenter, register_analysis_presenter
 from saq.configuration import get_config
 from saq.constants import AnalysisExecutionResult
 from saq.modules import AnalysisModule
@@ -529,3 +530,12 @@ class BaseAPIAnalyzer(AnalysisModule):
             return analysis
 
         return AnalysisExecutionResult.COMPLETED
+
+class BaseAPIAnalysisPresenter(AnalysisPresenter):
+    """Presenter for BaseAPIAnalysis."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/api_analysis.html"
+
+register_analysis_presenter(BaseAPIAnalysis, BaseAPIAnalysisPresenter)

@@ -2,6 +2,7 @@ import html
 import logging
 from typing import TYPE_CHECKING
 from saq.analysis.observable import Observable
+from saq.analysis.presenter.observable_presenter import ObservablePresenter, register_observable_presenter
 from saq.constants import CONFIG_GLOBAL, CONFIG_GLOBAL_LOCAL_EMAIL_DOMAINS, F_EMAIL_ADDRESS, F_EMAIL_BODY, F_EMAIL_CONVERSATION, F_EMAIL_DELIVERY, F_EMAIL_HEADER, F_EMAIL_SUBJECT, F_EMAIL_X_MAILER, F_MESSAGE_ID, create_email_delivery, parse_email_conversation, parse_email_delivery
 from saq.database.model import Remediation
 from saq.database.pool import get_db, get_db_connection
@@ -9,7 +10,7 @@ from saq.email import is_local_email_domain, normalize_email_address, normalize_
 from saq.environment import g_list
 from saq.gui import ObservableActionAddLocalEmailDomain
 from saq.observables.base import CaselessObservable, ObservableValueError
-from saq.observables.generator import map_observable_type
+from saq.observables.generator import register_observable_type
 from saq.util import is_subdomain
 
 
@@ -52,6 +53,18 @@ class EmailAddressObservable(CaselessObservable):
                 return True
 
         return False
+
+
+class EmailAddressObservablePresenter(ObservablePresenter):
+    """Presenter for EmailAddressObservable."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/default_observable.html"
+
+
+register_observable_presenter(EmailAddressObservable, EmailAddressObservablePresenter)
+
 
 class EmailDeliveryObservable(CaselessObservable):
     def __init__(self, *args, **kwargs):
@@ -126,6 +139,18 @@ class EmailConversationObservable(Observable):
     def jinja_template_path(self):
         return "analysis/email_conversation_observable.html"
 
+
+class EmailConversationObservablePresenter(ObservablePresenter):
+    """Presenter for EmailConversationObservable."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/email_conversation_observable.html"
+
+
+register_observable_presenter(EmailConversationObservable, EmailConversationObservablePresenter)
+
+
 class MessageIDObservable(Observable):
     def __init__(self, *args, **kwargs):
         super().__init__(F_MESSAGE_ID, *args, **kwargs)
@@ -194,11 +219,11 @@ class EmailHeaderObservable(Observable):
     def value(self, new_value):
         self._value = new_value
 
-map_observable_type(F_EMAIL_ADDRESS, EmailAddressObservable)
-map_observable_type(F_EMAIL_DELIVERY, EmailDeliveryObservable)
-map_observable_type(F_EMAIL_SUBJECT, EmailSubjectObservable)
-map_observable_type(F_EMAIL_X_MAILER, EmailXMailerObservable)
-map_observable_type(F_EMAIL_CONVERSATION, EmailConversationObservable)
-map_observable_type(F_MESSAGE_ID, MessageIDObservable)
-map_observable_type(F_EMAIL_BODY, EmailBodyObservable)
-map_observable_type(F_EMAIL_HEADER, EmailHeaderObservable)
+register_observable_type(F_EMAIL_ADDRESS, EmailAddressObservable)
+register_observable_type(F_EMAIL_DELIVERY, EmailDeliveryObservable)
+register_observable_type(F_EMAIL_SUBJECT, EmailSubjectObservable)
+register_observable_type(F_EMAIL_X_MAILER, EmailXMailerObservable)
+register_observable_type(F_EMAIL_CONVERSATION, EmailConversationObservable)
+register_observable_type(F_MESSAGE_ID, MessageIDObservable)
+register_observable_type(F_EMAIL_BODY, EmailBodyObservable)
+register_observable_type(F_EMAIL_HEADER, EmailHeaderObservable)

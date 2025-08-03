@@ -14,12 +14,12 @@ from saq.database import get_db
 from saq.database.pool import get_db_connection
 from saq.database.util.automation_user import initialize_automation_user
 from saq.email_archive import initialize_email_archive
-#from saq.engine.context import clear_current_engine, set_current_engine
 from saq.engine.tracking import clear_all_tracking
 from saq.environment import g, get_base_dir, get_data_dir, initialize_environment, set_g, set_node
 
 
 import pytest
+from saq.integration.integration_loader import get_valid_integration_dirs, load_integration_component_src
 from saq.modules.context import AnalysisModuleContext
 from saq.monitor import reset_emitter
 from tests.saq.helpers import start_api_server, stop_api_server, stop_unittest_logging, initialize_unittest_logging
@@ -306,3 +306,17 @@ def mock_api_call(test_client, monkeypatch):
         return CustomResponse(response)
 
     monkeypatch.setattr(ace_api, "_execute_api_call", mock_execute_api_call)
+
+#
+# for integrations we need to update the PYTHONPATH
+# but it needs to be done dynamically based on available integrations
+# this hook runs before the tests are collected and updates the PYTHONPATH
+# for all available (enabled) integrations
+#
+# NOTE the initialization routines also do this but they execute after tests are collected
+#
+
+def pytest_sessionstart(session):
+    for dir_path in get_valid_integration_dirs():
+        load_integration_component_src(dir_path)
+

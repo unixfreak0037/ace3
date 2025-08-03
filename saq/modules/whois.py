@@ -18,6 +18,7 @@ import logging
 from datetime import datetime
 
 from saq.analysis import Analysis, Observable
+from saq.analysis.presenter.analysis_presenter import AnalysisPresenter, register_analysis_presenter
 from saq.constants import F_FQDN, F_URL, AnalysisExecutionResult
 from saq.modules import AnalysisModule
 
@@ -273,3 +274,12 @@ class WhoisAnalyzer(AnalysisModule):
                 analysis.age_last_updated_in_days = age_in_days_as_string(_updated_date, _now)
 
             return AnalysisExecutionResult.COMPLETED
+
+class WhoisAnalysisPresenter(AnalysisPresenter):
+    """Presenter for WhoisAnalysis."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/whois.html"
+
+register_analysis_presenter(WhoisAnalysis, WhoisAnalysisPresenter)

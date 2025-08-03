@@ -254,45 +254,11 @@ def load_configuration():
     Returns:
         The resulting ConfigParser object with all configuration data loaded.
     """
-    # XXX HACK <-- get rid of these dude
-    # optionally when unit testing, the local site passwords can be saved in etc/unittest.passwords.json
-    # this will automatically load these passwords, not requiring ecs running
-    #if saq.UNIT_TESTING:
-        #unittest_passwords_path = os.path.join(saq.SAQ_HOME, 'etc', 'unittest.passwords.json')
-        #if os.path.exists(unittest_passwords_path):
-            #logging.info(f"loading passwords from {unittest_passwords_path}")
-            #with open(unittest_passwords_path, 'r') as fp:
-                #default_config.encrypted_password_cache = json.load(fp)
-
     # etc/saq.default.ini is always loaded first no matter what
     default_config = ACEConfigParser()
     default_config.load_file(os.path.join("etc", "saq.default.ini"))
 
-    # first we apply the default configuration for integrations
-    default_config.load_file(os.path.join("etc", "saq.integrations.default.ini"))
-
-    # then if a local configuration exists for this integration, also load that
-    default_config.load_file(os.path.join("etc", "saq.integrations.ini"))
-
-    # load individual integration configurations
-    if 'integrations' in default_config:
-        for integration in default_config['integrations'].keys():
-            if default_config['integrations'].getboolean(integration):
-                # first load the default config for this integration
-                target_config_path = os.path.join('etc', f'saq.{integration}.default.ini')
-                if not os.path.exists(target_config_path):
-                    sys.stderr.write(f"integration {integration} default config {target_config_path} "
-                                      "does not exist\n")
-                    continue
-
-                default_config.load_file(target_config_path)
-
-                # and then load the local site config for this integration, if it exists
-                #default_config = load_configuration_file(
-                        #os.path.join(saq.SAQ_HOME, 'etc', f'saq.{integration}.ini'),
-                        #default_config)
-
-    # then finally add the list specified via environment variables, command line
+    # add the list specified via environment variables, command line
     # and the site local etc/saq.ini
     for config_path in g_list(G_CONFIG_PATHS):
         default_config.load_file(config_path)
@@ -302,6 +268,7 @@ def load_configuration():
     if os.path.exists(db_auto_config_path):
         default_config.load_file(db_auto_config_path)
 
+    # XXX where is this come from?
     api_auto_config_path = ("data/etc/saq.api-keys.ini")
     if os.path.exists(api_auto_config_path):
         default_config.load_file(api_auto_config_path)

@@ -6,6 +6,7 @@ import logging
 import json
 
 from saq.analysis import Analysis
+from saq.analysis.presenter import AnalysisPresenter, register_analysis_presenter
 from saq.configuration import get_config_value
 from saq.constants import CONFIG_LDAP, CONFIG_LDAP_TOP_USER, F_EMAIL_ADDRESS, F_USER, AnalysisExecutionResult
 from saq.environment import get_base_dir
@@ -52,6 +53,15 @@ class UserTaggingAnalyzer(AnalysisModule):
                 user.add_tag(tag)
 
         return AnalysisExecutionResult.COMPLETED
+
+class UserTagAnalysisPresenter(AnalysisPresenter):
+    """Presenter for UserTagAnalysis - doesn't render in GUI."""
+
+    @property
+    def should_render(self) -> bool:
+        return False
+
+register_analysis_presenter(UserTagAnalysis, UserTagAnalysisPresenter)
 
 class UserAnalysis(Analysis):
     @property
@@ -132,3 +142,12 @@ class UserAnalyzer(AnalysisModule):
                 analysis.details['ldap']['entitlements'].append({'group':group, 'privileged':privileged})
 
         return AnalysisExecutionResult.COMPLETED
+
+class UserAnalysisPresenter(AnalysisPresenter):
+    """Presenter for UserAnalysis."""
+
+    @property
+    def template_path(self) -> str:
+        return "analysis/user.html"
+
+register_analysis_presenter(UserAnalysis, UserAnalysisPresenter)

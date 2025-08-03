@@ -515,26 +515,70 @@ clear_persistence_parser.set_defaults(func=clear_persistence)
 #
 
 def enable_integration(args):
-    import saq.integration
-    saq.integration.enable_integration(args.integration)
+    from saq.integration.integration_manager import enable_integration
+    enable_integration(args.name)
     sys.exit(0)
 
 def disable_integration(args):
-    import saq.integration
-    saq.integration.disable_integration(args.integration)
+    from saq.integration.integration_manager import disable_integration
+    disable_integration(args.name)
     sys.exit(0)
 
 def list_integrations(args):
-    import saq.integration
-    saq.integration.list_integrations()
+    from saq.integration.integration_loader import get_valid_integration_dirs
+    from saq.integration.integration_util import get_integration_name_from_path
+    from saq.integration.integration_manager import is_integration_enabled, is_integration_installed
+
+    integration_info = []
+    for dir_path in get_valid_integration_dirs():
+        name = get_integration_name_from_path(dir_path)
+        enabled = is_integration_enabled(name)
+        installed = is_integration_installed(name)
+        integration_info.append((name, "ENABLED" if enabled else "DISABLED", "YES" if installed else "NO"))
+
+    # Determine column widths
+    name_width = max(len("Integration"), *(len(name) for name, _, _ in integration_info))
+    status_width = max(len("Status"), *(len(status) for _, status, _ in integration_info))
+    installed_width = max(len("Installed"), *(len(installed) for _, _, installed in integration_info))
+
+    # Print header
+    print(f"{'Integration'.ljust(name_width)}  {'Status'.ljust(status_width)}  {'Installed'.ljust(installed_width)}")
+    print(f"{'-'*name_width}  {'-'*status_width}  {'-'*installed_width}")
+
+    # Print each integration
+    for name, status, installed in integration_info:
+        print(f"{name.ljust(name_width)}  {status.ljust(status_width)}  {installed.ljust(installed_width)}")
+
+    sys.exit(0)
+
+def install_integration(args):
+    from saq.integration.integration_manager import install_integration
+    install_integration(args.name)
+    sys.exit(0)
+
+def uninstall_integration(args):
+    from saq.integration.integration_manager import uninstall_integration
+    uninstall_integration(args.name)
     sys.exit(0)
 
 integration_parser = subparsers.add_parser('integration')
 integration_sp = integration_parser.add_subparsers(dest='integration_cmd')
 
+install_integration_parser = integration_sp.add_parser('install',
+    help="Installs the given integration.")
+install_integration_parser.add_argument('name',
+    help="The name of the integration to install.")
+install_integration_parser.set_defaults(func=install_integration)
+
+uninstall_integration_parser = integration_sp.add_parser('uninstall',
+    help="Uninstalls the given integration.")
+uninstall_integration_parser.add_argument('name',
+    help="The name of the integration to uninstall.")
+uninstall_integration_parser.set_defaults(func=uninstall_integration)
+
 enable_integration_parser = integration_sp.add_parser('enable',
     help="Enables the given integration.")
-enable_integration_parser.add_argument('integration',
+enable_integration_parser.add_argument('name',
     help="The integration to enable. Use ace integration list to get the list of available integrations.")
 enable_integration_parser.set_defaults(func=enable_integration)
 
@@ -544,7 +588,7 @@ list_integration_parser.set_defaults(func=list_integrations)
 
 disable_integration_parser = integration_sp.add_parser('disable',
     help="Disables the given integration.")
-disable_integration_parser.add_argument('integration',
+disable_integration_parser.add_argument('name',
     help="The integration to disable. Use ace integration list to get the list of available integrations.")
 disable_integration_parser.set_defaults(func=disable_integration)
 
@@ -777,24 +821,12 @@ def correlate(args):
             current_root.event_time = root.event_time
             current_root.details = root.details
 
-        # if this is a file then we need to copy it over to the storage directory
-        #if o_type == F_FILE:
-            #dest_path = os.path.join(current_root.storage_dir, os.path.basename(o_value))
-            #try:
-                #logging.debug("copying {} to {}".format(o_value, dest_path))
-                #shutil.copy(o_value, dest_path)
-            #except Exception as e:
-                #logging.error("unable to copy {} to {} for analysis: {}".format(o_value, dest_path, e))
-                #sys.exit(1)
-
-            #o_value = os.path.basename(o_value)
+        if o_type == F_FILE:
+            observable = current_root.add_file_observable(o_value, volatile=args.volatile)
+        else:
+            observable = current_root.add_observable_by_spec(o_type, o_value, reference_time, volatile=args.volatile)
 
         if observable is not None:
-            if o_type == F_FILE:
-                observable = current_root.add_file_observable(o_value, volatile=args.volatile)
-            else:
-                observable = current_root.add_observable(o_type, o_value, reference_time, volatile=args.volatile)
-
             for directive in args.directives:
                 observable.add_directive(directive)
 
@@ -3210,21 +3242,13 @@ remove_bro_http_whitelist_parser.add_argument('cidr', help="The network CIDR to 
 remove_bro_http_whitelist_parser.set_defaults(func=remove_bro_http_whitelist)
 
 def list_available_modules(args):
-    from saq.engine.module_loader import load_module
+    from saq.engine.engine_configuration import EngineConfiguration
+    from saq.engine.configuration_manager import ConfigurationManager
+    configuration_manager = ConfigurationManager(EngineConfiguration(engine_type=EngineType.LOCAL, single_threaded_mode=True))
+    configuration_manager.load_modules()
 
-    result = {}
-
-    for section in get_config().keys():
-        if not section.startswith('analysis_module_'):
-            continue
-
-        if section in get_config()['disabled_modules'] and get_config()['disabled_modules'].getboolean(section):
-            continue
-
-        result[section] = load_module(section)
-
-    for key in sorted(result.keys()):
-        print('{: <35}{}'.format(key[len('analysis_module_'):], result[key].__doc__ if result[key].__doc__ is not None else ''))
+    for module in sorted(configuration_manager.analysis_modules, key=lambda x: x.module_id):
+        print(f"{module.module_id}")
 
     sys.exit(0)
 
