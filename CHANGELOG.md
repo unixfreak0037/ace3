@@ -16,7 +16,7 @@ and this project (tries to) adheres to [Semantic Versioning](https://semver.org/
 - updated to the lastest version of yara.
 - using new yara_scanner_v2 project (fixed support for include diretive).
 - manage email archives database by partition.
-- pre-compile john the ripper for x64.
+- build jtr as part of the image.
 
 ### Removed
 
