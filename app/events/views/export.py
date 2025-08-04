@@ -1,5 +1,6 @@
 import logging
 import os
+import uuid
 from flask import make_response, request
 from flask_login import login_required
 from app.blueprints import events
@@ -25,8 +26,8 @@ def send_event_to():
         for alert_uuid in event.alerts:
             # NOTE: If we require the alert to be locked first, it can't be sent to the remote host until it finished analyzing.
             # This also prevents multiple people from trying to transfer the alert at the same time.
-            lock_uuid = acquire_lock(alert_uuid)
-            if not lock_uuid:
+            lock_uuid = str(uuid.uuid4())
+            if not acquire_lock(alert_uuid, lock_uuid):
                 return f"Unable to lock alert {alert_uuid}", 500
 
             # Alerts might be large, so execute the rsync in the background instead of possibly timing out the GUI

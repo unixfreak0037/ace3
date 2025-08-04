@@ -139,11 +139,6 @@ RUN git clone https://github.com/VirusTotal/yara.git /tmp/yara && \
 # install additional tools
 COPY packages/unautoit /usr/local/bin/unautoit
 RUN curl -fsSLk https://github.com/leibnitz27/cfr/releases/download/0.151/cfr-0.151.jar -o /usr/local/bin/cfr.jar
-RUN cd /opt/tools && \
-    git clone https://github.com/openwall/john.git john-1.9.0-jumbo-1 && \
-    cd john-1.9.0-jumbo-1/src && \
-    ./configure && \
-    make -sj
 RUN chmod a+x /usr/local/bin/unautoit && \
     chmod a+x /usr/local/bin/cfr.jar
 
@@ -187,6 +182,11 @@ RUN . /venv/bin/activate && \
         https://github.com/DissectMalware/XLMMacroDeobfuscator/archive/master.zip
 
 USER ace
+RUN cd /opt/tools && \
+    git clone https://github.com/openwall/john.git john-1.9.0-jumbo-1 && \
+    cd john-1.9.0-jumbo-1/src && \
+    ./configure && \
+    make -sj
 
 # the olevba library wants to reset the logging levels you set
 # so we patch it so that it doesn't do that

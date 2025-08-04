@@ -1,4 +1,3 @@
-import base64
 from datetime import datetime
 import logging
 from uuid import uuid4
@@ -14,12 +13,209 @@ from saq.analysis.root import RootAnalysis
 from saq.configuration.config import get_config
 from saq.constants import CLOSED_EVENT_LIMIT, F_FILE, VALID_OBSERVABLE_TYPES
 from saq.database.model import Campaign, Comment, Company, Malware, User, Event
-from saq.database.pool import get_db, get_db_connection
+from saq.database.pool import get_db
 from saq.database.util.observable_detection import get_all_observable_detections
 from saq.disposition import get_dispositions
 from saq.error.reporting import report_exception
 from saq.util.ui import create_histogram_string
 from saq.util.url import find_all_url_domains
+
+
+class TreeNode:
+    def __init__(self, obj, parent=None, prune_volatile=False):
+        # unique ID that can be used in the GUI to track nodes
+        self.uuid = str(uuid4())
+        # Analysis or Observable object
+        self.obj = obj
+        self.parent = parent
+        self.children = []
+        # points to an already existing TreeNode for the analysis of this Observable
+        self.reference_node = None
+        # nodes are not visible unless something along the path has a "detection point"
+        self.visible = False
+        # a list of nodes that refer to this node
+        self.referents = []
+        # set to True if we are not showing volatile nodes
+        self.prune_volatile = prune_volatile
+
+        # set the analysis presenter
+        if isinstance(obj, Analysis):
+            self.presenter = create_analysis_presenter(obj)
+        elif isinstance(obj, Observable):
+            self.presenter = create_observable_presenter(obj)
+
+    def add_child(self, child):
+        assert isinstance(child, TreeNode)
+        self.children.append(child)
+        child.parent = self
+
+    def remove_child(self, child):
+        assert isinstance(child, TreeNode)
+        self.children.remove(child)
+        child.parent = self
+
+    def refer_to(self, node):
+        self.reference_node = node
+        node.add_referent(self)
+
+    def add_referent(self, node):
+        self.referents.append(node)
+
+    def walk(self, callback):
+        callback(self)
+        for node in self.children:
+            node.walk(callback)
+
+    @property
+    def is_root_analysis(self):
+        return isinstance(self.obj, RootAnalysis)
+
+    @property
+    def is_analysis(self):
+        return isinstance(self.obj, Analysis)
+
+    @property
+    def volatile(self) -> bool:
+        if isinstance(self.obj, Analysis):
+            return False
+
+        return self.obj.volatile
+
+    def find_observable_node(self, ot, ov):
+        # if obj is an observable, not sure what class that actually is but not analysis will be an observable
+        if not self.is_analysis:
+            if self.obj.type == ot and str(self.obj.value) == ov:
+                return self
+
+        # recurse through children
+        for child in self.children:
+            o = child.find_observable_node(ot, ov)
+            if o is not None:
+                return o
+        return None
+
+    def is_collapsible(self, prune):
+        if self.is_analysis:
+            if prune:
+                for child in self.children:
+                    if child.visible:
+                        return True
+                return False
+            return len(self.children) > 0
+        else:
+            if self.reference_node is not None:
+                return self.reference_node.is_collapsible(prune)
+            for child in self.children:
+                if child.presenter.should_render:
+                    return True
+            if self.obj.has_directive('preview'):
+                return True
+            if self.obj.type == F_FILE and self.obj.exists and self.obj.is_image:
+                return True
+            return False
+
+    @property
+    def should_render(self):
+        if self.is_root_analysis:
+            return True
+        if self.is_analysis:
+            return self.presenter.should_render
+        # if we are pruning volatile nodes and this node is volatile AND does not lead to a detection point
+        if self.prune_volatile and self.volatile and not self.visible:
+            return False
+        return True
+
+    def __str__(self):
+        return "TreeNode({}, {}, {})".format(self.obj, self.reference_node, self.visible)
+
+
+def _recurse(current_node, node_tracker=None):
+    assert isinstance(current_node, TreeNode)
+    assert isinstance(current_node.obj, Analysis)
+    assert node_tracker is None or isinstance(node_tracker, dict)
+
+    analysis = current_node.obj
+    if node_tracker is None:
+        node_tracker = {}
+
+    for observable in analysis.observables:
+        child_node = TreeNode(observable, prune_volatile=current_node.prune_volatile)
+        current_node.add_child(child_node)
+
+        # if the observable is already in the current tree then we want to display a link to the existing analysis display
+        if observable.id in node_tracker:
+            child_node.refer_to(node_tracker[observable.id])
+            continue
+
+        node_tracker[observable.id] = child_node
+
+        for observable_analysis in [a for a in observable.all_analysis if a]:
+            observable_analysis_node = TreeNode(observable_analysis, prune_volatile=current_node.prune_volatile)
+            child_node.add_child(observable_analysis_node)
+            _recurse(observable_analysis_node, node_tracker)
+
+
+def _sort(node):
+    assert isinstance(node, TreeNode)
+
+    node.children = sorted(node.children, key=lambda x: (x.obj.sort_order, x.obj))
+    for node in node.children:
+        _sort(node)
+
+
+def _prune(node, current_path=None):
+    assert isinstance(node, TreeNode)
+    if current_path is None:
+        current_path = []
+    current_path.append(node)
+
+    if node.children:
+        for child in node.children:
+            _prune(child, current_path)
+    else:
+        # all nodes are visible up to nodes that have "detection points" or tags
+        # nodes tagged as "high_fp_frequency" are not visible
+        update_index = 0
+        index = 0
+        while index < len(current_path):
+            _has_detection_points = current_path[index].obj.has_detection_points()
+            #_has_tags = len(current_path[index].obj.tags) > 0
+            _always_visible = current_path[index].obj.always_visible()
+            #_high_fp_freq = current_path[index].obj.has_tag('high_fp_frequency')
+            _critical_analysis = current_path[index].obj.has_tag('critical_analysis')
+
+            # 5/18/2020 - jdavison - changing how this works -- will refactor these out once these changes are approved
+            _has_tags = False
+            _high_fp_freq = False
+
+            if _has_detection_points or _has_tags or _always_visible or _critical_analysis:
+                # if we have tags but no detection points and we also have the high_fp_freq tag then we hide that
+                if _high_fp_freq and not ( _has_detection_points or _always_visible ):
+                    index += 1
+                    continue
+
+                while update_index <= index:
+                    current_path[update_index].visible = True
+                    update_index += 1
+
+            index += 1
+
+    current_path.pop()
+
+
+def _resolve_references(node):
+    # in the case were we have a visible node that is refering to a node that is NOT visible
+    # then we need to use the data of the refering node
+    def _resolve(node):
+        if node.visible and node.reference_node and not node.reference_node.visible:
+            node.children = node.reference_node.children
+            for referent in node.reference_node.referents:
+                referent.reference_node = node
+
+            node.reference_node = None
+
+    node.walk(_resolve)
+
 
 @analysis.route('/analysis', methods=['GET', 'POST'])
 @login_required
@@ -60,7 +256,10 @@ def index():
     # what observable are we currently looking at?
     observable = None
     if observable_uuid is not None:
-        observable = alert.root_analysis.observable_store[observable_uuid]
+        observable = alert.root_analysis.get_observable(observable_uuid)
+        if observable is None:
+            flash(f"observable {observable_uuid} not found")
+            return redirect(url_for('analysis.index'))
 
     # get the analysis to view
     analysis = alert.root_analysis  # by default it's the alert
@@ -88,216 +287,7 @@ def index():
     # get all of the current observable detection data 
     observable_detections = get_all_observable_detections(alert.root_analysis)
 
-    #try:
-        #import ace_api
-        #api_result = ace_api.get_observables(alert_uuids=[alert.uuid], remote_host=get_config()["api"]["prefix"], api_key=get_config()["api"]["api_key"])
-        #if api_result["error"]:
-            #logging.warning("unable to get observable detections for %s: %s", alert.uuid, api_result["error"])
-        #else:
-            #for result in api_result["results"]:
-                #observable = alert.get_observable_by_spec(result["type"], base64.b64decode(result["value"]).decode())
-                #if observable:
-                    #if result["for_detection"]:
-                        #message = "enabled by unknown"
-                        #if result["enabled_by"]:
-                            #message = f"enabled by {result['enabled_by']['display_name']}"
-                            #if result["detection_context"]:
-                                #message += " - " + result['detection_context']
-
-                        #observable_detections[observable.id] = message
-
-    #except Exception as e:
-        #logging.exception("unable to query observable detections: %s", e)
-
     # compute the display tree
-    class TreeNode(object):
-        def __init__(self, obj, parent=None, prune_volatile=False):
-            # unique ID that can be used in the GUI to track nodes
-            self.uuid = str(uuid4())
-            # Analysis or Observable object
-            self.obj = obj
-            self.parent = parent
-            self.children = []
-            # points to an already existing TreeNode for the analysis of this Observable
-            self.reference_node = None
-            # nodes are not visible unless something along the path has a "detection point"
-            self.visible = False
-            # a list of nodes that refer to this node
-            self.referents = []
-            # set to True if we are not showing volatile nodes
-            self.prune_volatile = prune_volatile
-
-            # set the analysis presenter
-            if isinstance(obj, Analysis):
-                self.presenter = create_analysis_presenter(obj)
-            elif isinstance(obj, Observable):
-                self.presenter = create_observable_presenter(obj)
-
-        def add_child(self, child):
-            assert isinstance(child, TreeNode)
-            self.children.append(child)
-            child.parent = self
-
-        def remove_child(self, child):
-            assert isinstance(child, TreeNode)
-            self.children.remove(child)
-            child.parent = self
-
-        def refer_to(self, node):
-            self.reference_node = node
-            node.add_referent(self)
-
-        def add_referent(self, node):
-            self.referents.append(node)
-
-        def walk(self, callback):
-            callback(self)
-            for node in self.children:
-                node.walk(callback)
-
-        @property
-        def is_root_analysis(self):
-            return isinstance(self.obj, RootAnalysis)
-
-        @property
-        def is_analysis(self):
-            return isinstance(self.obj, Analysis)
-
-        @property
-        def volatile(self) -> bool:
-            if isinstance(self.obj, Analysis):
-                return False
-
-            return self.obj.volatile
-
-        def find_observable_node(self, ot, ov):
-            # if obj is an observable, not sure what class that actually is but not analysis will be an observable
-            if not self.is_analysis:
-                if self.obj.type == ot and str(self.obj.value) == ov:
-                    return self
-
-            # recurse through children
-            for child in self.children:
-                o = child.find_observable_node(ot, ov)
-                if o is not None:
-                    return o
-            return None
-
-        def is_collapsible(self, prune):
-            if self.is_analysis:
-                if prune:
-                    for child in self.children:
-                        if child.visible:
-                            return True
-                    return False
-                return len(self.children) > 0
-            else:
-                if self.reference_node is not None:
-                    return self.reference_node.is_collapsible(prune)
-                for child in self.children:
-                    if child.presenter.should_render:
-                        return True
-                if self.obj.has_directive('preview'):
-                    return True
-                if self.obj.type == F_FILE and self.obj.exists and self.obj.is_image:
-                    return True
-                return False
-
-        @property
-        def should_render(self):
-            if self.is_root_analysis:
-                return True
-            if self.is_analysis:
-                return self.presenter.should_render
-            # if we are pruning volatile nodes and this node is volatile AND does not lead to a detection point
-            if self.prune_volatile and self.volatile and not self.visible:
-                return False
-            return True
-
-        def __str__(self):
-            return "TreeNode({}, {}, {})".format(self.obj, self.reference_node, self.visible)
-
-    def _recurse(current_node, node_tracker=None):
-        assert isinstance(current_node, TreeNode)
-        assert isinstance(current_node.obj, Analysis)
-        assert node_tracker is None or isinstance(node_tracker, dict)
-
-        analysis = current_node.obj
-        if node_tracker is None:
-            node_tracker = {}
-
-        for observable in analysis.observables:
-            child_node = TreeNode(observable, prune_volatile=current_node.prune_volatile)
-            current_node.add_child(child_node)
-
-            # if the observable is already in the current tree then we want to display a link to the existing analysis display
-            if observable.id in node_tracker:
-                child_node.refer_to(node_tracker[observable.id])
-                continue
-
-            node_tracker[observable.id] = child_node
-
-            for observable_analysis in [a for a in observable.all_analysis if a]:
-                observable_analysis_node = TreeNode(observable_analysis, prune_volatile=current_node.prune_volatile)
-                child_node.add_child(observable_analysis_node)
-                _recurse(observable_analysis_node, node_tracker)
-
-    def _sort(node):
-        assert isinstance(node, TreeNode)
-
-        node.children = sorted(node.children, key=lambda x: (x.obj.sort_order, x.obj))
-        for node in node.children:
-            _sort(node)
-
-    def _prune(node, current_path=[]):
-        assert isinstance(node, TreeNode)
-        current_path.append(node)
-
-        if node.children:
-            for child in node.children:
-                _prune(child, current_path)
-        else:
-            # all nodes are visible up to nodes that have "detection points" or tags
-            # nodes tagged as "high_fp_frequency" are not visible
-            update_index = 0
-            index = 0
-            while index < len(current_path):
-                _has_detection_points = current_path[index].obj.has_detection_points()
-                #_has_tags = len(current_path[index].obj.tags) > 0
-                _always_visible = current_path[index].obj.always_visible()
-                #_high_fp_freq = current_path[index].obj.has_tag('high_fp_frequency')
-                _critical_analysis = current_path[index].obj.has_tag('critical_analysis')
-
-                # 5/18/2020 - jdavison - changing how this works -- will refactor these out once these changes are approved
-                _has_tags = False
-                _high_fp_freq = False
-
-                if _has_detection_points or _has_tags or _always_visible or _critical_analysis:
-                    # if we have tags but no detection points and we also have the high_fp_freq tag then we hide that
-                    if _high_fp_freq and not ( _has_detection_points or _always_visible ):
-                        index += 1
-                        continue
-
-                    while update_index <= index:
-                        current_path[update_index].visible = True
-                        update_index += 1
-
-                index += 1
-
-        current_path.pop()
-
-    def _resolve_references(node):
-        # in the case were we have a visible node that is refering to a node that is NOT visible
-        # then we need to use the data of the refering node
-        def _resolve(node):
-            if node.visible and node.reference_node and not node.reference_node.visible:
-                node.children = node.reference_node.children
-                for referent in node.reference_node.referents:
-                    referent.reference_node = node
-
-                node.reference_node = None
-
-        node.walk(_resolve)
 
     # are we viewing all analysis?
     if 'prune' not in session:

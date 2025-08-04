@@ -10,8 +10,6 @@ import urllib
 from app.blueprints import register_blueprints
 
 from app.integration import register_integration_blueprints
-from saq.analysis.presenter import register_analysis_presenter
-from saq.analysis.presenter.analysis_presenter import unregister_analysis_presenter
 from saq.configuration.config import get_config_value
 from saq.constants import CONFIG_GLOBAL, CONFIG_GLOBAL_INSTANCE_TYPE, G_INSTANCE_TYPE
 from flask_config import get_flask_config
@@ -40,6 +38,38 @@ def hexdump_wrapper(data):
     p.stdin.write(data)
     _stdout, _stderr = p.communicate()
     return _stdout.decode(errors='ignore')
+
+# utility functions to encoding/decoding base64 to/from strings
+def s64decode(s):
+    return base64.b64decode(s + '===').decode('utf8', errors='replace')
+
+def s64encode(s):
+    return base64.b64encode(s.encode('utf8', errors='replace')).decode('ascii')
+
+def b64escape(s):
+    return base64.b64encode(urllib.parse.quote(s.encode('utf8', errors='replace')).encode('ascii')).decode('ascii')
+
+def b64decode_wrapper(s):
+    # sometimes base64 encoded data that tools send do not have the correct padding
+    # this deals with that without breaking anything
+    try:
+        return base64.b64decode(f'{s}===')
+    except:
+        logging.error(f"Unable to b64decode: {s}")
+        return b''
+
+def btoa(b):
+    return b.decode('ascii')
+
+def dict_from_json_string(s):
+    try:
+        return json.loads(s)
+    except Exception as e:
+        logging.error(f"unable to convert {s} to JSON: {e}")
+        return {}
+
+def pprint_json_dict(d):
+    return json.dumps(d, indent=4, sort_keys=True)
 
 class CustomSQLAlchemy(SQLAlchemy):
     def apply_driver_hacks(self, app, info, options):
@@ -70,8 +100,6 @@ def create_app(testing: Optional[bool]=False):
     
     get_flask_config(get_config_value(CONFIG_GLOBAL, CONFIG_GLOBAL_INSTANCE_TYPE)).init_app(flask_app)
 
-    #bootstrap.init_app(app)
-    #moment.init_app(app)
     login_manager.init_app(flask_app)
 
     db = CustomSQLAlchemy(engine_options=get_flask_config(g(G_INSTANCE_TYPE)).SQLALCHEMY_DATABASE_OPTIONS)
@@ -79,7 +107,7 @@ def create_app(testing: Optional[bool]=False):
         # XXX hack: tests will create test contexts but the database pool is global
         # we don't want to change it because things like collectors *also* manage the connections
         set_db(db.session)
-    #set_g(G_DB, db)
+
     db.init_app(flask_app)
 
     with flask_app.app_context():
@@ -97,38 +125,6 @@ def create_app(testing: Optional[bool]=False):
 
     register_blueprints(flask_app)
     register_integration_blueprints(flask_app)
-
-    # utility functions to encoding/decoding base64 to/from strings
-    def s64decode(s):
-        return base64.b64decode(s + '===').decode('utf8', errors='replace')
-
-    def s64encode(s):
-        return base64.b64encode(s.encode('utf8', errors='replace')).decode('ascii')
-
-    def b64escape(s):
-        return base64.b64encode(urllib.parse.quote(s.encode('utf8', errors='replace')).encode('ascii')).decode('ascii')
-
-    def b64decode_wrapper(s):
-        # sometimes base64 encoded data that tools send do not have the correct padding
-        # this deals with that without breaking anything
-        try:
-            return base64.b64decode(f'{s}===')
-        except:
-            logging.error(f"Unable to b64decode: {s}")
-            return b''
-
-    def btoa(b):
-        return b.decode('ascii')
-
-    def dict_from_json_string(s):
-        try:
-            return json.loads(s)
-        except Exception as e:
-            logging.error(f"unable to convert {s} to JSON: {e}")
-            return {}
-
-    def pprint_json_dict(d):
-        return json.dumps(d, indent=4, sort_keys=True)
 
     @flask_app.context_processor
     def inject():

@@ -194,8 +194,14 @@ def global_setup(request, tmpdir, datadir):
 
     stop_unittest_logging()
 
-    if needs_full_reset(request):
-        get_db().remove()
+    # SQLAlchemy session management
+    db_session = get_db()
+    if db_session is not None:
+        db_session.remove()
+        db_session.close()
+
+    from sqlalchemy.orm.session import close_all_sessions
+    close_all_sessions()
 
 @pytest.fixture
 def test_client():

@@ -1,6 +1,7 @@
 import logging
 import os
 import traceback
+import uuid
 from flask import request
 from flask_login import current_user, login_required
 from app.analysis.views.session.alert import get_current_alert
@@ -19,8 +20,8 @@ def observable_action():
     observable_uuid = request.form.get('observable_uuid')
     action_id = request.form.get('action_id')
 
-    lock_uuid = acquire_lock(alert.uuid)
-    if not lock_uuid:
+    lock_uuid = str(uuid.uuid4())
+    if not acquire_lock(alert.uuid, lock_uuid):
         return "Unable to lock alert.", 500
     try:
         if not alert.load():

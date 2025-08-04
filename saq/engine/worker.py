@@ -380,8 +380,11 @@ class Worker:
                 report_exception()
                 time.sleep(1) # avoid spinning
             finally:
-                # if we allocated a database session then we release it here
-                get_db().remove()
+                # SQLAlchemy session management
+                db_session = get_db()
+                if db_session is not None:
+                    db_session.remove()
+                    db_session.close()
 
         logging.debug("worker {} exiting".format(os.getpid()))
 

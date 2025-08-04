@@ -1,9 +1,7 @@
-import logging
 from operator import attrgetter
-from flask import render_template, request
+from flask import flash, redirect, render_template, request, url_for
 from flask_login import login_required
 from app.blueprints import analysis
-from saq.configuration.config import get_config
 from saq.database.model import Observable, ObservableMapping
 from saq.database.pool import get_db, get_db_connection
 from saq.gui.alert import GUIAlert
@@ -12,7 +10,15 @@ from saq.gui.alert import GUIAlert
 @login_required
 def observables():
     # get the alert we're currently looking at
-    alert = get_db().query(GUIAlert).filter(GUIAlert.uuid == request.args['alert_uuid']).one()
+    alert_uuid = request.args.get('alert_uuid')
+    if not alert_uuid:
+        flash("alert_uuid missing")
+        return redirect(url_for('analysis.index'))
+
+    alert = get_db().query(GUIAlert).filter(GUIAlert.uuid == alert_uuid).one_or_none()
+    if not alert:
+        flash("alert not found")
+        return redirect(url_for('analysis.index'))
 
     # get all the observable IDs for the alerts we currently have to display
     observables = get_db().query(Observable).join(ObservableMapping,

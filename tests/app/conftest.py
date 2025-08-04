@@ -23,16 +23,12 @@ def analyst(global_setup):
 
     delete_user("john")
 
-    #with get_db_connection() as db:
-        #cursor = db.cursor()
-        #cursor.execute("DELETE FROM users WHERE id = %s", (analyst.id,))
-        #db.commit()
-
 @pytest.fixture(autouse=True, scope="function")
 def app(global_setup):
     flask_app = create_app(testing=True)
     flask_app.config.update({
         "TESTING": True,
+        "WTF_CSRF_ENABLED": False,  # Disable CSRF for tests
     })
 
     app_context = flask_app.test_request_context()                      

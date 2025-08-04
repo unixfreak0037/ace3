@@ -1,6 +1,7 @@
 from app.blueprints import auth
 
 import logging
+from urllib.parse import urlparse
 
 from flask import render_template, redirect, request, url_for, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
@@ -15,6 +16,48 @@ def get_remote_ipv4():
         return request.environ['REMOTE_ADDR']
     else:
         return request.environ['HTTP_X_FORWARDED_FOR']
+
+def is_safe_redirect_url(target):
+    """
+    Validate that the target URL is safe for redirection.
+    Only allows redirects to the same host and valid schemes.
+    """
+    if not target:
+        return False
+    
+    # Parse the target URL
+    try:
+        target_url = urlparse(target)
+    except Exception:
+        return False
+    
+    # Only allow http and https schemes
+    if target_url.scheme not in ('http', 'https'):
+        return False
+    
+    # Get the current request's host URL for comparison
+    ref_url = urlparse(request.host_url)
+    
+    # Ensure the target URL is for the same host
+    if ref_url.netloc != target_url.netloc:
+        return False
+    
+    return True
+
+def get_safe_next_url():
+    """
+    Get a safe next URL for redirection, falling back to main.index if unsafe.
+    """
+    next_url = request.args.get('next') or request.form.get('next')
+    
+    if next_url and is_safe_redirect_url(next_url):
+        return next_url
+    
+    # Log unsafe redirect attempts for security monitoring
+    if next_url:
+        logging.warning(f"unsafe redirect attempt blocked: {next_url} from {get_remote_ipv4()}")
+    
+    return url_for('main.index')
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
@@ -46,7 +89,9 @@ def login():
 
         logging.info(f"user {user.username} logged in from {get_remote_ipv4()}")
 
-        response = redirect(request.args.get('next') or url_for('main.index'))
+        # Get safe next URL using validation
+        next_url = get_safe_next_url()
+        response = redirect(next_url)
         # remember the username so we can autofill the field
         response.set_cookie('username', user.username)
         return response
@@ -94,7 +139,7 @@ def change_password():
             logging.warning(
                 f"user failed to provide correct existing password during password reset: {current_user.username}"
             )
-            flash(f"Current password is incorrect", 'error')
+            flash("Current password is incorrect", 'error')
             return render_template('auth/change-password.html', **template_kwargs)
 
         # user.password has a property setter decorator that handles hashing of the password upon

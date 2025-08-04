@@ -3,7 +3,7 @@ import logging
 from flask import request, session
 from flask_login import current_user
 import pytz
-from sqlalchemy import and_, or_, not_
+from sqlalchemy import and_, or_, not_, exists
 
 from saq.database import get_db
 
@@ -33,21 +33,16 @@ class Filter:
                     conditions.append(self.column.ilike(value))
 
         if self.inverted:
-            # XXX awful hack
-            # for tags and observables when we end up getting back from the database are actually alerts duplicated by tag and observable values
-            # for example, if an alert ALERT1 has TAG1 and TAG2, you get back 
-            # ALERT1 TAG1
-            # ALERT1 TAG2
-            # in the results. SQLAlchemy takes care of sorting them out
-            # but this means that when you say "NOT TAG2", meaning "give me alerts without TAG2", you still get that ALERT1 TAG1 row
-            # so for these two types of filters, we have to have special logic to do the filtering correctly
-            # you can see the same thing below for observables too
+            # Use EXISTS subqueries for many-to-many relationships to properly handle NOT conditions
             if str(self.column) == "Tag.name":
-                from saq.database import DatabaseSession, TagMapping, Tag, Alert
-                session = DatabaseSession()
-                subquery = session.query(TagMapping.alert_id).filter(or_(*conditions)).join(Tag, TagMapping.tag_id == Tag.id)
-                query = query.filter(Alert.id.notin_(subquery))
-                return query
+                from saq.database import TagMapping, Tag, Alert
+                subquery = exists().where(
+                    and_(
+                        TagMapping.tag_id == Tag.id,
+                        or_(*conditions)
+                    )
+                ).where(TagMapping.alert_id == Alert.id).correlate(Alert)
+                return query.filter(not_(subquery))
             else:
                 return query.filter(not_(or_(*conditions)))
         else:
@@ -114,14 +109,16 @@ class TypeValueFilter(SelectFilter):
                 conditions.append(and_(self.column == value[0], self.value_column == value[1].encode('utf8', errors='ignore')))
 
         if self.inverted:
-            # XXX awful hack
-            # see the awful hack above for details
+            # Use EXISTS subqueries for many-to-many relationships to properly handle NOT conditions
             if str(self.column) == 'Observable.type':
-                from saq.database import DatabaseSession, ObservableMapping, Observable, Alert
-                session = DatabaseSession()
-                subquery = session.query(ObservableMapping.alert_id).filter(or_(*conditions)).join(Observable, ObservableMapping.observable_id == Observable.id)
-                query = query.filter(Alert.id.notin_(subquery))
-                return query
+                from saq.database import ObservableMapping, Observable, Alert
+                subquery = exists().where(
+                    and_(
+                        ObservableMapping.observable_id == Observable.id,
+                        or_(*conditions)
+                    )
+                ).where(ObservableMapping.alert_id == Alert.id).correlate(Alert)
+                return query.filter(not_(subquery))
             else:
                 return query.filter(not_(or_(*conditions)))
         else:

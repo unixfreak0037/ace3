@@ -1,6 +1,5 @@
 from app.blueprints import main
-from .forms import AppModeSelectionForm
-from flask import render_template, redirect, url_for, flash
+from flask import redirect, url_for
 from flask_login import current_user
 
 @main.route('/', methods=['GET', 'POST'])
@@ -9,11 +8,5 @@ def index():
     if not current_user.is_authenticated:
         return redirect(url_for('auth.login'))
 
-    form = AppModeSelectionForm()
-    if form.validate_on_submit():
-        if form.manage_alerts.data: # submit form .data value is True when clicked
-            flash("Feature is not implemented yet.")
-        else:
-            return redirect(url_for('analysis.index'))
-
-    return render_template('index.html', form=form)#, ace_config=saq.CONFIG)
+    # default to the manage alerts page
+    return redirect(url_for("analysis.manage"))

@@ -21,6 +21,11 @@
                     <form method="POST" action="{{url_for('auth.login')}}">
                         {{ form.csrf_token }}
                         
+                        <!-- Preserve the next parameter -->
+                        {% if request.args.get('next') %}
+                        <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+                        {% endif %}
+                        
                         <!-- Username Field -->
                         <div class="form-floating mb-3">
                             <input type="text" 

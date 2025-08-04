@@ -20,9 +20,6 @@ def delete_user(username: str) -> bool:
     Returns True if the user was deleted, False if the user does not exist.
     """
     db = get_db()
-    user = db.query(User).filter(User.username == username).first()
-    if user:
-        db.delete(user)
-        return True
-
-    return False
+    result = db.execute(User.__table__.delete().where(User.username == username)).rowcount
+    db.commit()
+    return result > 0

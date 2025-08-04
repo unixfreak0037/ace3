@@ -6,6 +6,10 @@ from app.blueprints import analysis
 from saq.configuration.config import get_config
 from saq.remediation import RemediationTarget, get_remediation_targets
 
+# XXX there is a TODO list item for this -- call should not block like it does
+# instead, the remediation should be queued and the call should return immediately
+# then the analyst (or whoever) should be notified somehow
+
 @analysis.route('/remediation_targets', methods=['POST', 'PUT', 'DELETE', 'PATCH'])
 @login_required
 def remediation_targets():
