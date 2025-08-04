@@ -2,6 +2,7 @@ from flask import url_for
 import pytest
 
 from saq.email_archive import archive_email
+from saq.util.time import local_time
 
 @pytest.mark.integration
 def test_download_archive(web_client, tmpdir):
@@ -13,7 +14,7 @@ def test_download_archive(web_client, tmpdir):
     email = tmpdir / "test_email"
     email.write_binary(b"test")
 
-    archive_result = archive_email(str(email), "test_message_id", ["john@localhost"])
+    archive_result = archive_email(str(email), "test_message_id", ["john@localhost"], local_time())
 
     assert web_client.get(url_for("analysis.download_archive"), query_string={
         "md5": archive_result.hash,

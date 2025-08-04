@@ -9,6 +9,7 @@ from saq.email_archive import archive_email
 from saq.environment import g_int
 from saq.observables import FQDNObservable, URLObservable
 from saq.remediation import REMEDIATION_ACTION_REMOVE, REMEDIATION_ACTION_RESTORE, REMEDIATION_STATUS_COMPLETED, REMEDIATION_STATUS_IN_PROGRESS, RemediationDelay, RemediationError, RemediationFailure, RemediationIgnore, RemediationService, RemediationSuccess, RemediationTarget, Remediator, get_remediation_targets
+from saq.util.time import local_time
 from tests.saq.helpers import create_root_analysis
 
 @pytest.mark.parametrize('processing, state, css, restore_key, history', [
@@ -251,7 +252,7 @@ def archived_email(tmpdir):
     email = tmpdir / "email"
     email.write_binary(b"test")
 
-    return archive_email(str(email), TEST_MESSAGE_ID, TEST_RECIPIENTS)
+    return archive_email(str(email), TEST_MESSAGE_ID, TEST_RECIPIENTS, local_time())
 
 # this is an integration test because I don't have a way to mock the email_archive database
 @pytest.mark.integration
@@ -346,7 +347,7 @@ def test_get_remediation_targets_single_alert_with_observables():
     try:
         message_id = "<test@example.com>"
         recipients = ["user1@company.com", "user2@company.com"]
-        archive_email(temp_email_path, message_id, recipients)
+        archive_email(temp_email_path, message_id, recipients, local_time())
         
         # Create root analysis with MessageID observable
         root = create_root_analysis()
@@ -392,7 +393,7 @@ def test_get_remediation_targets_multiple_alerts():
         
         message_id_1 = "<test1@example.com>"
         recipients_1 = ["user1@company.com"]
-        archive_email(temp_files[0], message_id_1, recipients_1)
+        archive_email(temp_files[0], message_id_1, recipients_1, local_time())
         
         root1 = create_root_analysis(uuid=str(uuid.uuid4()))
 
@@ -407,7 +408,7 @@ def test_get_remediation_targets_multiple_alerts():
         
         message_id_2 = "<test2@example.com>"
         recipients_2 = ["user2@company.com", "user3@company.com"]
-        archive_email(temp_files[1], message_id_2, recipients_2)
+        archive_email(temp_files[1], message_id_2, recipients_2, local_time())
         
         root2 = create_root_analysis(uuid=str(uuid.uuid4()))
         
@@ -456,7 +457,7 @@ def test_get_remediation_targets_deduplication():
                 f.write(f"test email content {i}".encode())
                 temp_files.append(f.name)
             
-            archive_email(temp_files[i], message_id, recipients)
+            archive_email(temp_files[i], message_id, recipients, local_time())
             
             root = create_root_analysis(uuid=str(uuid.uuid4()))
             observable = root.add_observable(MessageIDObservable(message_id))
@@ -503,7 +504,7 @@ def test_get_remediation_targets_sorting():
                 f.write(f"test email content {i}".encode())
                 temp_files.append(f.name)
             
-            archive_email(temp_files[i], message_id, recipients)
+            archive_email(temp_files[i], message_id, recipients, local_time())
             
             root = create_root_analysis(uuid=str(uuid.uuid4()))
             
@@ -542,7 +543,7 @@ def test_get_remediation_targets_mixed_observable_types():
     try:
         message_id = "<mixed@example.com>"
         recipients = ["user@company.com"]
-        archive_email(temp_email_path, message_id, recipients)
+        archive_email(temp_email_path, message_id, recipients, local_time())
         
         # Create root analysis with both MessageID (has targets) and FQDN (no targets) observables
         root = create_root_analysis()

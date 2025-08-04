@@ -11,7 +11,6 @@ x-common-volumes: &common-volumes
     - ace-sql-dev:/docker-entrypoint-initdb.d
     - ace-yara-dev:/opt/ace/etc/yara
     - ace-hunt-dev:/opt/ace/hunts
-    - ace-misc-dev:/opt/misc
     - ace-ssl-dev:/opt/ace/ssl
 
 services:
@@ -30,7 +29,6 @@ services:
             - ace-data-dev:/opt/ace/data
             - ace-sql-dev:/docker-entrypoint-initdb.d
             - ace-ssl-dev:/opt/ace/ssl
-            - ace-misc-dev:/opt/misc
         cap_add:
             - SYS_PTRACE
         networks: 
@@ -298,8 +296,6 @@ volumes:
         name: ace-yara-dev
     ace-hunt-dev:
         name: ace-hunt-dev
-    ace-misc-dev:
-        name: ace-misc-dev
-        
+
 networks:
     dev:

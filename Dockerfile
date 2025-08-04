@@ -118,8 +118,8 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # create necessary directories
-RUN mkdir -p /opt/signatures /opt/ace /venv /opt/misc && \
-    chown -R ace:ace /opt/signatures /opt/ace /venv /opt/misc
+RUN mkdir -p /opt/signatures /opt/ace /venv /opt/tools && \
+    chown -R ace:ace /opt/signatures /opt/ace /venv /opt/tools
 
 # configure Python and install base packages
 RUN python3 -m pip config set global.cert /etc/ssl/certs/ca-certificates.crt && \
@@ -138,8 +138,13 @@ RUN git clone https://github.com/VirusTotal/yara.git /tmp/yara && \
 
 # install additional tools
 COPY packages/unautoit /usr/local/bin/unautoit
+RUN curl -fsSLk https://github.com/leibnitz27/cfr/releases/download/0.151/cfr-0.151.jar -o /usr/local/bin/cfr.jar
+RUN cd /opt/tools && \
+    git clone https://github.com/openwall/john.git john-1.9.0-jumbo-1 && \
+    cd john-1.9.0-jumbo-1/src && \
+    ./configure && \
+    make -sj
 RUN chmod a+x /usr/local/bin/unautoit && \
-    wget https://github.com/leibnitz27/cfr/releases/download/0.151/cfr-0.151.jar -O /usr/local/bin/cfr.jar && \
     chmod a+x /usr/local/bin/cfr.jar
 
 # configure locale
@@ -151,7 +156,7 @@ RUN sed -i '/en_US.UTF-8 UTF-8/ s/^# //' /etc/locale.gen && \
     ln -s /opt/ace/etc/yara /opt/signatures
 
 # install Node.js and deobfuscator
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+RUN curl -fsSLk https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     npm install --global deobfuscator && \
     apt-get clean && \

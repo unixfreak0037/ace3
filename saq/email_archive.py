@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 import gzip
 import logging
 import os.path
@@ -20,6 +21,7 @@ from saq.environment import g_int, get_data_dir, set_g
 from saq.local_locking import LocalLockError, lock_local
 from saq.util import fully_qualified
 from saq.util.hashing import sha256_file
+from saq.util.time import local_time
 
 
 FIELD_MESSAGE_ID = "message_id"
@@ -46,13 +48,14 @@ class ArchiveEmailResult:
     archive_id: int
     hash: str
     archive_path: str
+    insert_date: datetime
 
 def initialize_email_archive():
     """Initializes the email archive subsystem. Must be called once at application startup."""
     set_g(G_EMAIL_ARCHIVE_SERVER_ID, register_email_archive())
     os.makedirs(get_archive_dir(), exist_ok=True)
 
-def archive_email(file_path: str, message_id: str, recipients: list[str]) -> ArchiveEmailResult:
+def archive_email(file_path: str, message_id: str, recipients: list[str], insert_date: datetime) -> ArchiveEmailResult:
     """Archives the given email file with the given message_id and recipient."""
     assert isinstance(file_path, str)
     assert isinstance(message_id, str)
@@ -62,11 +65,11 @@ def archive_email(file_path: str, message_id: str, recipients: list[str]) -> Arc
     with get_db_connection(DB_EMAIL_ARCHIVE) as db:
         cursor = db.cursor()
         archive_id = insert_email_archive(db, cursor, hash)
-        index_email_archive(db, cursor, archive_id, FIELD_MESSAGE_ID, message_id)
-        index_email_history(db, cursor, message_id, recipients)
+        index_email_archive(db, cursor, archive_id, FIELD_MESSAGE_ID, message_id, insert_date)
+        index_email_history(db, cursor, message_id, recipients, insert_date)
         db.commit()
 
-    return ArchiveEmailResult(archive_id=archive_id, hash=hash, archive_path=get_archive_path_by_hash(hash))
+    return ArchiveEmailResult(archive_id=archive_id, hash=hash, archive_path=get_archive_path_by_hash(hash), insert_date=insert_date)
 
 def archive_email_file(file_path: str, message_id: str) -> str:
     """Stores the email in the archive system and returns the md5 hash of the archived email.
@@ -177,17 +180,17 @@ def insert_email_archive(db, cursor, email_hash: str) -> int:
     row = cursor.fetchone()
     return row[0]
 
-def index_email_archive(db, cursor, archive_id: int, field_name: str, field_value: str):
+def index_email_archive(db, cursor, archive_id: int, field_name: str, field_value: str, insert_date: datetime):
     # 03/09/2022 - these are the only two fields used from this table
     if field_name in [ FIELD_MESSAGE_ID, FIELD_URL ]: # TODO make configurable
         if field_name == FIELD_MESSAGE_ID:
             field_value = normalize_message_id(field_value)
 
         execute_with_retry(db, cursor, 
-            "INSERT IGNORE INTO archive_index ( field, hash, archive_id ) VALUES ( %s, UNHEX(SHA2(%s, 256)), %s )",
-            (field_name, field_value, archive_id))
+            "INSERT IGNORE INTO archive_index ( field, hash, archive_id, insert_date ) VALUES ( %s, UNHEX(SHA2(%s, 256)), %s, %s )",
+            (field_name, field_value, archive_id, insert_date))
             
-def index_email_history(db, cursor, message_id: str, recipients: list[str]):
+def index_email_history(db, cursor, message_id: str, recipients: list[str], insert_date: datetime):
     message_id = normalize_message_id(message_id)
     # TODO deal with duplicate
     for recipient in recipients:
@@ -196,17 +199,19 @@ def index_email_history(db, cursor, message_id: str, recipients: list[str]):
             execute_with_retry(db, cursor, 
                 """
                 INSERT INTO email_history ( 
+                    insert_date,
                     message_id, 
                     message_id_hash, 
                     recipient, 
                     recipient_hash 
                 ) VALUES ( 
+                    %s,
                     %s, 
                     UNHEX(SHA2(%s, 256)), 
                     %s, 
                     UNHEX(SHA2(%s, 256)) 
                 )""", 
-                (message_id, message_id, recipient, recipient))
+                (insert_date, message_id, message_id, recipient, recipient))
         except IntegrityError:
             # TODO ignore dupes but log or count when this happens for debugging purposes
             pass

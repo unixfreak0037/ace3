@@ -21,6 +21,7 @@ from saq.email_archive import (
     iter_decrypt_email,
 )
 from saq.environment import get_data_dir
+from saq.util.time import local_time
 
 @pytest.mark.integration
 def test_register_email_archive():
@@ -35,7 +36,7 @@ def archived_email(tmpdir):
     email = tmpdir / "email"
     email.write_binary(b"test")
 
-    return archive_email(str(email), TEST_MESSAGE_ID, [TEST_RECIPIENT])
+    return archive_email(str(email), TEST_MESSAGE_ID, [TEST_RECIPIENT], local_time())
 
 @pytest.mark.unit
 def test_archive_email_file(tmpdir):
@@ -72,15 +73,16 @@ def test_duplicate(tmpdir):
     email = tmpdir / "email"
     email.write_binary(b"test")
 
-    result_1 = archive_email(str(email), TEST_MESSAGE_ID, [TEST_RECIPIENT])
-    result_2 = archive_email(str(email), TEST_MESSAGE_ID, [TEST_RECIPIENT])
+    insert_date = local_time()
+    result_1 = archive_email(str(email), TEST_MESSAGE_ID, [TEST_RECIPIENT], insert_date)
+    result_2 = archive_email(str(email), TEST_MESSAGE_ID, [TEST_RECIPIENT], insert_date)
     assert result_1 == result_2
 
 @pytest.mark.integration
 def test_multiple_recipients(archived_email):
     with get_db_connection(DB_EMAIL_ARCHIVE) as db:
         cursor = db.cursor()
-        index_email_history(db, cursor, TEST_MESSAGE_ID, [TEST_RECIPIENT_2])
+        index_email_history(db, cursor, TEST_MESSAGE_ID, [TEST_RECIPIENT_2], archived_email.insert_date)
         db.commit()
 
     result = get_recipients_by_message_id(TEST_MESSAGE_ID)
@@ -92,7 +94,7 @@ def test_multiple_recipients(archived_email):
 def test_duplicate_index(archived_email):
     with get_db_connection(DB_EMAIL_ARCHIVE) as db:
         cursor = db.cursor()
-        index_email_history(db, cursor, TEST_MESSAGE_ID, [TEST_RECIPIENT])
+        index_email_history(db, cursor, TEST_MESSAGE_ID, [TEST_RECIPIENT], archived_email.insert_date)
         db.commit()
 
     result = get_recipients_by_message_id(TEST_MESSAGE_ID)

@@ -6,7 +6,7 @@
 # this ensures that the volumes are owned by ace instead
 #
 
-for path in /opt/ace/data /opt/ace/ssl /docker-entrypoint-initdb.d /opt/misc
+for path in /opt/ace/data /opt/ace/ssl /docker-entrypoint-initdb.d
 do
     if [[ $(stat -c "$U" ${path}) != "ace" ]]
     then

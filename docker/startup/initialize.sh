@@ -87,8 +87,6 @@ do
 	if [ ! -e "${path}" ]; then touch "${path}"; fi
 done
 
-bin/initialize_misc.sh
-
 # TODO get rid of these
 if [ ! -e data/etc/organization.json ]; then echo '{}' > data/etc/organization.json; fi
 if [ ! -e data/etc/local_networks.csv ]; then echo 'Indicator,Indicator_Type' > data/etc/local_networks.csv; fi

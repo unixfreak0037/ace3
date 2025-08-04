@@ -14,6 +14,7 @@ from saq.environment import g_boolean
 from saq.error.reporting import report_exception
 from saq.modules import AnalysisModule
 from saq.observables.file import FileObservable
+from saq.util.time import local_time
 
 
 KEY_DECRYPTED_FILE = "decrypted_file"
@@ -175,7 +176,8 @@ class EmailArchiveAction(AnalysisModule):
         analysis = self.create_analysis(_file)
         assert isinstance(analysis, EmailArchiveResults)
 
-        archive_result = archive_email(_file.full_path, email_analysis.message_id, email_analysis.env_rcpt_to)
+        insert_date = local_time()
+        archive_result = archive_email(_file.full_path, email_analysis.message_id, email_analysis.env_rcpt_to, insert_date)
         analysis.hash = archive_result.hash
         analysis.archive_id = archive_result.archive_id
         analysis.archive_path = archive_result.archive_path
@@ -199,8 +201,9 @@ class EmailArchiveAction(AnalysisModule):
             cursor = db.cursor()
 
             # update the fast search indexes
+            insert_date = local_time()
             for field, email_property in transactions:
-                index_email_archive(db, cursor, analysis.archive_id, field, email_property)
+                index_email_archive(db, cursor, analysis.archive_id, field, email_property, insert_date)
 
             db.commit()
 

@@ -4,28 +4,32 @@ import os
 import re
 
 from subprocess import PIPE, Popen
-from typing import List
+from typing import Optional
 
 whitespace_re = re.compile(r'\s')
 
 def generate_wordlist(
-        text_file: str=None, 
-        text_content: str=None, 
+        text_file: Optional[str]=None, 
+        text_content: Optional[str]=None, 
         range_low: int=4, 
         range_high: int=14, 
         byte_limit: int=1024, 
         list_limit: int=1000,
-        ) -> List[str]:
+        ) -> list[str]:
     """Given a text file or string, return a list of all the likely passwords, assuming the password is in there somewhere."""
-    if not text_content:
+    if text_content is None:
         with open(text_file, 'rb') as fp:
             data = fp.read(byte_limit).decode(errors='ignore')
     else:
-        data = text_content
+        data = text_content[:byte_limit]
+
+    # if we don't have anything to work with, return an empty list
+    if not data:
+        return []
 
     password_list = set()
     for r in range(range_low, range_high + 1):
-        for i in range(0, byte_limit - r):
+        for i in range(0, len(data) - r + 1):
             password = data[i:i + r]
             if not password:
                 continue
@@ -36,11 +40,14 @@ def generate_wordlist(
 
             password_list.add(password)
             if len(password_list) >= list_limit:
-                break
+                return list(password_list)
 
     return list(password_list)
 
 def crack_password(john_bin_path: str, hash_file: str, filename: str, mode: str) -> str:
+    if not os.path.exists(hash_file):
+        raise FileNotFoundError(f"hash file {hash_file} not found")
+
     p = Popen([os.path.join(john_bin_path, 'john'), mode, hash_file], stdin=PIPE, stdout=PIPE,
               stderr=PIPE)
     _, _ = p.communicate()

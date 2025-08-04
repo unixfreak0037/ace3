@@ -13,6 +13,7 @@ from saq.environment import g_obj
 from saq.modules.email.archive import EmailArchiveAction, EmailArchiveResults, EncryptedArchiveAnalysis, EncryptedArchiveAnalyzer
 from saq.observables.file import FileObservable
 from saq.util.hashing import sha256_str
+from saq.util.time import local_time
 from tests.saq.test_util import create_test_context
 
 TEST_MESSAGE_ID = "<test-message-id>"
@@ -23,7 +24,7 @@ def archived_email(tmpdir):
     email = tmpdir / "email"
     email.write_binary(b"test")
 
-    return archive_email(str(email), TEST_MESSAGE_ID, [TEST_RECIPIENT])
+    return archive_email(str(email), TEST_MESSAGE_ID, [TEST_RECIPIENT], local_time())
 
 @pytest.mark.unit
 def test_encrypted_archive_analysis(tmpdir):
