@@ -141,6 +141,7 @@ def global_setup(request, tmpdir, datadir):
         with get_db_connection('email_archive') as db:
             c = db.cursor()
             c.execute("DELETE FROM archive")
+            c.execute("DELETE FROM archive_index")
             c.execute("DELETE FROM archive_server")
             c.execute("DELETE FROM email_history")
             db.commit()

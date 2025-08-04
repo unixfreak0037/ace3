@@ -30,12 +30,14 @@ CREATE TABLE `archive` (
   `archive_id` int(11) NOT NULL AUTO_INCREMENT,
   `server_id` int(11) NOT NULL,
   `hash` binary(32) NOT NULL,
-  `insert_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`archive_id`),
-  UNIQUE KEY `server_id` (`server_id`,`hash`),
-  KEY `idx_insert_date` (`insert_date`),
-  CONSTRAINT `fk_archive_1` FOREIGN KEY (`server_id`) REFERENCES `archive_server` (`server_id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `insert_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`archive_id`, `insert_date`),
+  UNIQUE KEY `idx_server_id` (`server_id`,`hash`, `insert_date`),
+  KEY `idx_insert_date` (`insert_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+PARTITION BY RANGE COLUMNS(insert_date) (
+  PARTITION p_catchall VALUES LESS THAN (MAXVALUE)
+);
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -49,11 +51,15 @@ CREATE TABLE `archive_index` (
   `field` enum('env_from','env_to','body_from','body_to','subject','decoded_subject','message_id','content','url') NOT NULL,
   `hash` binary(32) NOT NULL,
   `archive_id` int(11) NOT NULL,
-  PRIMARY KEY (`hash`,`archive_id`,`field`),
-  KEY `archive_id` (`archive_id`),
-  KEY `hash` (`hash`),
-  CONSTRAINT `fk_archive_index_1` FOREIGN KEY (`archive_id`) REFERENCES `archive` (`archive_id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `insert_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`hash`,`archive_id`,`field`, `insert_date`),
+  KEY `idx_archive_id` (`archive_id`),
+  KEY `idx_field_hash` (`field`,`hash`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+PARTITION BY RANGE COLUMNS(insert_date) (
+  PARTITION p_catchall VALUES LESS THAN (MAXVALUE)
+);
+
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -70,12 +76,16 @@ CREATE TABLE `email_history` (
   `message_id_hash` BINARY(32) NOT NULL,
   `recipient` TEXT NOT NULL,
   `recipient_hash` BINARY(32) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `eh_insert_date` (`insert_date`),
-  KEY `eh_message_id` (`message_id_hash`),
-  KEY `eh_recipient` (`recipient_hash`),
-  UNIQUE KEY `eh_message_id_recipient` ( `message_id_hash`, `recipient_hash` )
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  PRIMARY KEY (`id`, `insert_date`),
+  KEY `idx_eh_insert_date` (`insert_date`),
+  KEY `idx_eh_message_id` (`message_id_hash`),
+  KEY `idx_eh_recipient` (`recipient_hash`),
+  UNIQUE KEY `idx_eh_message_id_recipient` ( `message_id_hash`, `recipient_hash`, `insert_date` )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+PARTITION BY RANGE COLUMNS(insert_date) (
+  PARTITION p_catchall VALUES LESS THAN (MAXVALUE)
+);
+
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -89,7 +99,7 @@ CREATE TABLE `archive_server` (
   `server_id` int(11) NOT NULL AUTO_INCREMENT,
   `hostname` varchar(256) NOT NULL,
   PRIMARY KEY (`server_id`),
-  UNIQUE KEY `hostname` (`hostname`)
+  UNIQUE KEY `idx_hostname` (`hostname`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
