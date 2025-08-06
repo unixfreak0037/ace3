@@ -72,3 +72,4 @@ Werkzeug
 WTForms
 xdis
 yacron
+yara-python

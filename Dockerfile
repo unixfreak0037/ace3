@@ -125,17 +125,6 @@ RUN mkdir -p /opt/signatures /opt/ace /venv /opt/tools && \
 RUN python3 -m pip config set global.cert /etc/ssl/certs/ca-certificates.crt && \
     python3 -m pip install --no-cache-dir pip virtualenv --upgrade
 
-# do I still need to do this?
-# build and install YARA with all required features
-RUN git clone https://github.com/VirusTotal/yara.git /tmp/yara && \
-    cd /tmp/yara && \
-    ./bootstrap.sh && \
-    ./configure --enable-magic --enable-dotnet --enable-macho --enable-dex && \
-    make -j && \
-    make install && \
-    ldconfig && \
-    rm -rf /tmp/yara
-
 # install additional tools
 COPY packages/unautoit /usr/local/bin/unautoit
 RUN curl -fsSLk https://github.com/leibnitz27/cfr/releases/download/0.151/cfr-0.151.jar -o /usr/local/bin/cfr.jar
