@@ -155,7 +155,7 @@ COPY --chown=ace:ace installer/requirements-2.7.txt /venv/python-requirements-2.
 RUN python3 -m virtualenv --python=python3 /venv && \
     . /venv/bin/activate && \
     pip config set global.cert /etc/ssl/certs/ca-certificates.crt && \
-    pip install --no-cache-dir setuptools pycryptodome && \
+    pip install --no-cache-dir --update pip wheel setuptools && \
     pip install --no-cache-dir -r /venv/python-requirements.txt && \
     pip install --no-cache-dir git+https://github.com/unixfreak0037/yara_scanner_v2.git && \
     pip install --no-cache-dir git+https://github.com/unixfreak0037/officeparser3.git

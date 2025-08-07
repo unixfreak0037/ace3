@@ -35,7 +35,6 @@ plyara
 progress
 psutil
 pyasn1
-pycryptodomex
 pyenchant
 PyExifTool
 pylint

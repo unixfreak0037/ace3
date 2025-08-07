@@ -7,19 +7,18 @@ from getpass import getpass
 import io
 import logging
 import os.path
-import socket
 import struct
 
 from typing import Optional, Union
 
-import Crypto.Random
+import os
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import hmac
 
-from Crypto.Cipher import AES
-from Crypto.Hash import SHA256
-from Crypto.Protocol.KDF import PBKDF2
-
-from saq.configuration import get_config, get_config_value_as_int
-from saq.constants import CONFIG_ENCRYPTION, CONFIG_ENCRYPTION_ITERATIONS, CONFIG_ENCRYPTION_SALT_SIZE, G_ECS_SOCKET_PATH, G_ENCRYPTION_INITIALIZED, G_ENCRYPTION_KEY, G_INSTANCE_TYPE, INSTANCE_TYPE_DEV
+from saq.configuration import get_config_value_as_int
+from saq.constants import CONFIG_ENCRYPTION, CONFIG_ENCRYPTION_ITERATIONS, CONFIG_ENCRYPTION_SALT_SIZE, G_ENCRYPTION_INITIALIZED, G_ENCRYPTION_KEY, G_INSTANCE_TYPE, INSTANCE_TYPE_DEV
 from saq.environment import g, g_boolean, set_g
 
 CHUNK_SIZE = 64 * 1024
@@ -54,11 +53,6 @@ def encryption_key_set():
 
     return True
 
-    #return os.path.exists(os.path.join(get_encryption_store_path(), 'key')) \
-           #and os.path.exists(os.path.join(get_encryption_store_path(), 'salt')) \
-           #and os.path.exists(os.path.join(get_encryption_store_path(), 'verification')) \
-           #and os.path.exists(os.path.join(get_encryption_store_path(), 'iterations'))
-
 def get_decryption_key(password):
     """Returns the 32 byte key used to decrypt the encryption key.
        Raises InvalidPasswordError if the password is incorrect.
@@ -73,8 +67,14 @@ def get_decryption_key(password):
     iterations = get_database_config_value(CONFIG_KEY_ENCRYPTION_ITERATIONS, int)
     target_verification = get_database_config_value(CONFIG_KEY_ENCRYPTION_VERIFICATION, bytes)
 
-    result = PBKDF2(password, salt, 64, iterations)
-    if target_verification != result[32:]:
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=64,
+        salt=salt,
+        iterations=iterations,
+    )
+    result = kdf.derive(password.encode() if isinstance(password, str) else password)
+    if not hmac.compare_digest(target_verification, result[32:]):
         raise InvalidPasswordError()
 
     return result[:32]
@@ -109,134 +109,143 @@ def set_encryption_password(password, old_password=None, key=None):
     if g(G_ENCRYPTION_KEY) is None:
         # otherwise we just make a new one
         if key is None:
-            #saq.ENCRYPTION_PASSWORD = Crypto.Random.OSRNG.posix.new().read(32)
-            set_g(G_ENCRYPTION_KEY, Crypto.Random.get_random_bytes(32))
+            set_g(G_ENCRYPTION_KEY, os.urandom(32))
         else:
             set_g(G_ENCRYPTION_KEY, key)
 
     # now we compute the key to use to encrypt the encryption key using the user-supplied password
-    #salt = Crypto.Random.OSRNG.posix.new().read(get_config()['encryption'].getint('salt_size', fallback=32))
-    salt = Crypto.Random.get_random_bytes(get_config_value_as_int(CONFIG_ENCRYPTION, CONFIG_ENCRYPTION_SALT_SIZE, default=32))
-    iterations =  get_config_value_as_int(CONFIG_ENCRYPTION, CONFIG_ENCRYPTION_ITERATIONS, default=8192)
-    result = PBKDF2(password, salt, 64, iterations)
+    salt = os.urandom(get_config_value_as_int(CONFIG_ENCRYPTION, CONFIG_ENCRYPTION_SALT_SIZE, default=32))
+    iterations =  get_config_value_as_int(CONFIG_ENCRYPTION, CONFIG_ENCRYPTION_ITERATIONS, default=600000)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=64,
+        salt=salt,
+        iterations=iterations,
+    )
+    result = kdf.derive(password.encode() if isinstance(password, str) else password)
     user_encryption_key = result[:32] # the first 32 bytes is the user encryption key
     verification_key = result[32:] # and the second 32 bytes is used for password verification
-
-    #create_directory(get_encryption_store_path())
-
     set_database_config_value(CONFIG_KEY_ENCRYPTION_VERIFICATION, verification_key)
-    #with open(os.path.join(get_encryption_store_path(), 'verification'), 'wb') as fp:
-        #fp.write(verification_key)
-
     encrypted_encryption_key = encrypt_chunk(g(G_ENCRYPTION_KEY), password=user_encryption_key)
     set_database_config_value(CONFIG_KEY_ENCRYPTION_KEY, encrypted_encryption_key)
-    #with open(os.path.join(get_encryption_store_path(), 'key'), 'wb') as fp:
-        #fp.write(encrypted_encryption_key)
-
     set_database_config_value(CONFIG_KEY_ENCRYPTION_SALT, salt)
-    #with open(os.path.join(get_encryption_store_path(), 'salt'), 'wb') as fp:
-        #fp.write(salt)
-
     set_database_config_value(CONFIG_KEY_ENCRYPTION_ITERATIONS, iterations)
-    #with open(os.path.join(get_encryption_store_path(), 'iterations'), 'w') as fp:
-        #fp.write(str(iterations))
 
 def _get_password(password: Optional[Union[bytes, str]]=None) -> bytes:
     if password is None:
         return g(G_ENCRYPTION_KEY)
 
     if isinstance(password, str):
-        h = SHA256.new()
-        h.update(password.encode())
-        return h.digest()
+        digest = hashes.Hash(hashes.SHA256())
+        digest.update(password.encode())
+        return digest.finalize()
 
     if not isinstance(password, bytes) or len(password) != 32:
         raise ValueError("password must be 32 bytes")
 
     return password
 
-# https://eli.thegreenplace.net/2010/06/25/aes-encryption-of-files-in-python-with-pycrypto
 def encrypt(source_path, target_path, password=None):
     """Encrypts the given file at source_path with the given password and saves the results in target_path.
-       If password is None then saq.ENCRYPTION_PASSWORD is used instead.
-       password must be a byte string 32 bytes in length."""
+       Uses AES-GCM for authenticated encryption. If password is None then the global encryption key is used.
+       The header format is: <Q original_size> || <12-byte nonce> || <ciphertext> || <16-byte tag>."""
 
     password = _get_password(password)
-    #iv = Crypto.Random.OSRNG.posix.new().read(AES.block_size)
-    iv = Crypto.Random.get_random_bytes(AES.block_size)
-    encryptor = AES.new(password, AES.MODE_CBC, iv)
+    nonce = os.urandom(12)  # Recommended nonce size for GCM
+    cipher = Cipher(algorithms.AES(password), modes.GCM(nonce))
+    encryptor = cipher.encryptor()
     file_size = os.path.getsize(source_path)
 
     with open(source_path, 'rb') as fp_in:
         with open(target_path, 'wb') as fp_out:
+            # Write header: original size and nonce
             fp_out.write(struct.pack('<Q', file_size))
-            fp_out.write(iv)
+            fp_out.write(nonce)
 
+            # Stream encrypt the file contents
             while True:
                 chunk = fp_in.read(CHUNK_SIZE)
                 if len(chunk) == 0:
                     break
-                elif len(chunk) % 16 != 0:
-                    chunk += b' ' * (16 - len(chunk) % 16)
+                fp_out.write(encryptor.update(chunk))
 
-                fp_out.write(encryptor.encrypt(chunk))
+            # Finalize and write authentication tag
+            encryptor.finalize()
+            fp_out.write(encryptor.tag)
 
 def encrypt_chunk(chunk, password=None):
     """Encrypts the given chunk of data and returns the encrypted chunk.
-       If password is None then saq.ENCRYPTION_PASSWORD is used instead.
-       password must be a byte string 32 bytes in length."""
+       Uses AES-GCM for authenticated encryption. If password is None then the global encryption key is used.
+       Returns: <Q original_size> || <12-byte nonce> || <ciphertext> || <16-byte tag>."""
 
     password = _get_password(password)
-    #iv = Crypto.Random.OSRNG.posix.new().read(AES.block_size)
-    iv = Crypto.Random.get_random_bytes(AES.block_size)
-    encryptor = AES.new(password, AES.MODE_CBC, iv)
+    nonce = os.urandom(12)
+    cipher = Cipher(algorithms.AES(password), modes.GCM(nonce))
+    encryptor = cipher.encryptor()
 
     original_size = len(chunk)
 
-    if len(chunk) % 16 != 0:
-        chunk += b' ' * (16 - len(chunk) % 16)
+    ciphertext = encryptor.update(chunk)
+    encryptor.finalize()
+    tag = encryptor.tag
 
-    result = struct.pack('<Q', original_size) + iv + encryptor.encrypt(chunk)
+    result = struct.pack('<Q', original_size) + nonce + ciphertext + tag
     return result
 
 def decrypt(source_path, target_path=None, password=None):
-    """Decrypts the given file at source_path with the given password and saves the results in target_path.
-       If target_path is None then output will be sent to standard output.
-       If password is None then saq.ENCRYPTION_PASSWORD is used instead.
-       password must be a byte string 32 bytes in length."""
+    """Decrypts the given file at source_path and writes plaintext to target_path.
+       Expects AES-GCM format: <Q original_size> || <12-byte nonce> || <ciphertext> || <16-byte tag>."""
 
     password = _get_password(password)
     with open(source_path, 'rb') as fp_in:
+        total_size = os.path.getsize(source_path)
         original_size = struct.unpack('<Q', fp_in.read(struct.calcsize('Q')))[0]
-        iv = fp_in.read(16)
-        decryptor = AES.new(password, AES.MODE_CBC, iv)
+        nonce = fp_in.read(12)
+
+        # Read authentication tag from end of file
+        fp_in.seek(total_size - 16)
+        tag = fp_in.read(16)
+
+        # Prepare to read ciphertext only (exclude header and tag)
+        ciphertext_length = total_size - struct.calcsize('Q') - 12 - 16
+        fp_in.seek(struct.calcsize('Q') + 12)
+
+        cipher = Cipher(algorithms.AES(password), modes.GCM(nonce, tag))
+        decryptor = cipher.decryptor()
 
         with open(target_path, 'wb') as fp_out:
-            while True:
-                chunk = fp_in.read(CHUNK_SIZE)
-                if len(chunk) == 0:
+            remaining = ciphertext_length
+            while remaining > 0:
+                to_read = CHUNK_SIZE if remaining > CHUNK_SIZE else remaining
+                chunk = fp_in.read(to_read)
+                if not chunk:
                     break
+                remaining -= len(chunk)
+                fp_out.write(decryptor.update(chunk))
 
-                fp_out.write(decryptor.decrypt(chunk))
-
+            # Finalize and truncate to original size
+            decryptor.finalize()
             fp_out.truncate(original_size)
 
 def decrypt_chunk(chunk, password=None):
-    """Decrypts the given encrypted chunk with the given password and returns the decrypted chunk.
-       If password is None then saq.ENCRYPTION_PASSWORD is used instead.
-       password must be a byte string 32 bytes in length."""
+    """Decrypts an AES-GCM encrypted chunk produced by encrypt_chunk.
+       Expects format: <Q original_size> || <12-byte nonce> || <ciphertext> || <16-byte tag>."""
 
     password = _get_password(password)
     _buffer = io.BytesIO(chunk)
     original_size = struct.unpack('<Q', _buffer.read(struct.calcsize('Q')))[0]
-    iv = _buffer.read(16)
-    chunk = _buffer.read()
+    nonce = _buffer.read(12)
+    remaining = _buffer.read()
 
-    #original_size = struct.unpack('<Q', chunk[0:struct.calcsize('Q')])[0]
-    #iv = chunk[struct.calcsize('Q'):struct.calcsize('Q') + 16]
-    #chunk = chunk[struct.calcsize('Q') + 16:]
-    decryptor = AES.new(password, AES.MODE_CBC, iv)
-    result = decryptor.decrypt(chunk)
+    if len(remaining) < 16:
+        raise ValueError("encrypted chunk too short")
+
+    ciphertext = remaining[:-16]
+    tag = remaining[-16:]
+
+    cipher = Cipher(algorithms.AES(password), modes.GCM(nonce, tag))
+    decryptor = cipher.decryptor()
+    result = decryptor.update(ciphertext) + decryptor.finalize()
     return result[:original_size]
 
 def initialize_encryption(encryption_password_plaintext: Optional[str]=None, prompt_for_missing_password: Optional[bool]=False):
@@ -266,7 +275,7 @@ def initialize_encryption(encryption_password_plaintext: Optional[str]=None, pro
                 # This fixes the ability to load encrypted passwords when the container first starts up.
                 if g(G_INSTANCE_TYPE) != INSTANCE_TYPE_DEV:
                     del os.environ["SAQ_ENC"]
-                
+
                 if encryption_password_plaintext == "test":
                     logging.warning("Using default encryption key 'test'. This is not recommended for production use.")
 
@@ -274,8 +283,8 @@ def initialize_encryption(encryption_password_plaintext: Optional[str]=None, pro
                 try:
                     set_g(G_ENCRYPTION_KEY, get_aes_key(encryption_password_plaintext))
                 except InvalidPasswordError:
-                    logging.error(f"encryption password is wrong")
-                    ENCRYPTION_PASSWORD_PLAINTEXT = None
+                    logging.error("encryption password is wrong")
+                    encryption_password_plaintext = None
 
     except Exception as e:
         logging.error(f"unable to get encryption key: {e}")
