@@ -3,14 +3,14 @@ import base64
 import os
 import pathlib
 import tempfile
-from shutil import copyfile
 
 import pytest
 
-from saq.analysis import Observable, RootAnalysis
+from saq.analysis import Observable
 from saq.configuration import get_config
-from saq.constants import DIRECTIVE_CRAWL_EXTRACTED_URLS, DIRECTIVE_EXTRACT_URLS, DIRECTIVE_EXTRACT_URLS_DOMAIN_AS_URL, F_FILE, F_URL, AnalysisExecutionResult
-from saq.modules.file_analysis import ArchiveAnalysis, ArchiveAnalyzer, AutoItAnalyzer, DotnetDeobfuscateAnalyzer, ExifAnalyzer, FileHashAnalysis, FileHashAnalyzer, FileTypeAnalysis, FileTypeAnalyzer, HTMLDataURLAnalysis, HTMLDataURLAnalyzer, LnkParseAnalyzer, OCRAnalysis, OCRAnalyzer, QRCodeAnalysis, QRCodeAnalyzer, SynchronyFileAnalysis, SynchronyFileAnalyzer, URLExtractionAnalysis, URLExtractionAnalyzer
+from saq.constants import DIRECTIVE_CRAWL_EXTRACTED_URLS, DIRECTIVE_EXTRACT_URLS, DIRECTIVE_EXTRACT_URLS_DOMAIN_AS_URL, F_FILE, F_URL, R_EXTRACTED_FROM, AnalysisExecutionResult
+from saq.modules.file_analysis import ArchiveAnalysis, ArchiveAnalyzer, AutoItAnalyzer, De4dotAnalyzer, ExifAnalyzer, FileHashAnalysis, FileHashAnalyzer, FileTypeAnalysis, FileTypeAnalyzer, HTMLDataURLAnalysis, HTMLDataURLAnalyzer, LnkParseAnalyzer, OCRAnalysis, OCRAnalyzer, QRCodeAnalysis, QRCodeAnalyzer, SynchronyFileAnalysis, SynchronyFileAnalyzer, URLExtractionAnalysis, URLExtractionAnalyzer
+from saq.modules.file_analysis.dotnet import De4dotAnalysis
 from saq.modules.file_analysis.is_file_type import is_autoit, is_chm_file, is_dotnet, is_image, is_jar_file, is_javascript_file, is_lnk_file, is_pe_file, is_x509
 from saq.modules.adapter import AnalysisModuleAdapter
 from tests.saq.helpers import create_root_analysis
@@ -295,9 +295,8 @@ def test_is_dotnet(datadir, tmp_path):
                 fp_out.write(bytes.fromhex(line))
     assert is_dotnet(target_path) is True
 
-@pytest.mark.skip(reason="Need to figure out a way to run 3.1")
 @pytest.mark.integration
-def test_dotnet_deobfuscate(caplog, datadir, monkeypatch, test_context):
+def test_de4dot_analyzer(caplog, datadir, monkeypatch, test_context):
     # Create a test alert with file observable
     root = create_root_analysis(analysis_mode='test_single')
     root.initialize_storage()
@@ -310,11 +309,20 @@ def test_dotnet_deobfuscate(caplog, datadir, monkeypatch, test_context):
                 fp_out.write(bytes.fromhex(line))
 
     observable = root.add_file_observable(target_path)
-    analyzer = AnalysisModuleAdapter(DotnetDeobfuscateAnalyzer(context=create_test_context(root=root)))
-    analysis = analyzer.execute_analysis(observable)
+    analyzer = De4dotAnalyzer(context=create_test_context(root=root))
+    analysis_result = analyzer.execute_analysis(observable)
 
-    assert analysis is True
-    assert 'DotnetDeobfuscate Analysis succeeded' in caplog.text
+    assert analysis_result == AnalysisExecutionResult.COMPLETED
+    analysis = observable.get_and_load_analysis(De4dotAnalysis)
+    assert analysis.deobfuscated
+    
+    # there should be a single file observable
+    assert isinstance(analysis, De4dotAnalysis)
+    assert len(analysis.observables) == 1
+    assert analysis.observables[0].type == F_FILE
+    assert analysis.observables[0].file_path == 'malicious.exe.deobfuscated/dotnet_deobfuscated_malicious.exe'
+    assert analysis.observables[0].redirection == observable
+    assert analysis.observables[0].has_relationship(R_EXTRACTED_FROM)
 
 @pytest.mark.integration
 def test_zipped_jar(datadir, monkeypatch, test_context):

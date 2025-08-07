@@ -6,37 +6,76 @@ from saq.constants import F_FILE, R_EXTRACTED_FROM, AnalysisExecutionResult
 from saq.modules import AnalysisModule
 from saq.modules.file_analysis.is_file_type import is_dotnet
 from saq.observables.file import FileObservable
-from saq.util.filesystem import get_local_file_path
 
 
-class DotnetDeobfuscateAnalysis(Analysis):
+KEY_STDOUT = "stdout"
+KEY_STDERR = "stderr"
+KEY_ERROR = "error"
+KEY_DEOBFUSCATED = "deobfuscated"
+
+class De4dotAnalysis(Analysis):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.details = {
-            'stdout': None,
-            'stderr': None,
-            'error': None,
-            'deobfuscated': False,
+            KEY_STDOUT: None,
+            KEY_STDERR: None,
+            KEY_ERROR: None,
+            KEY_DEOBFUSCATED: False,
         }
+
+    @property
+    def stdout(self):
+        return self.details[KEY_STDOUT]
+
+    @stdout.setter
+    def stdout(self, value):
+        self.details[KEY_STDOUT] = value
+
+    @property
+    def stderr(self):
+        return self.details[KEY_STDERR]
+
+    @stderr.setter
+    def stderr(self, value):
+        self.details[KEY_STDERR] = value
+
+    @property
+    def error(self):
+        return self.details[KEY_ERROR]
+
+    @error.setter
+    def error(self, value):
+        self.details[KEY_ERROR] = value
+
+    @property
+    def deobfuscated(self):
+        return self.details[KEY_DEOBFUSCATED]
+
+    @deobfuscated.setter
+    def deobfuscated(self, value):
+        self.details[KEY_DEOBFUSCATED] = value
 
     def generate_summary(self) -> str:
         if not self.details:
             return None
+
+        if self.error:
+            return f"de4dot analysis error: {self.error}"
         
-        if not self.details['deobfuscated']:
+        if not self.deobfuscated:
             return None
         
-        return "DotnetDeobfuscate Analysis succeeded"
+        return "de4dot analysis succeeded"
 
-class DotnetDeobfuscateAnalyzer(AnalysisModule):
+class De4dotAnalyzer(AnalysisModule):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     @property
     def generated_analysis_type(self):
-        return DotnetDeobfuscateAnalysis
+        return De4dotAnalysis
     
     @property
     def de4dot_path(self):
@@ -69,20 +108,20 @@ class DotnetDeobfuscateAnalyzer(AnalysisModule):
 
         try:
             # Check for obfuscation with -d first
-            p = Popen(['dotnet', self.de4dot_path, '-d', local_file_path], stdout=PIPE, stderr=PIPE)
+            p = Popen(['de4dot', '-d', local_file_path], stdout=PIPE, stderr=PIPE)
 
             try:
                 stdout, stdint = p.communicate(timeout=10)
-            except TimeoutExpired as e:
-                logging.warning("DotnetDeobfuscate timed out on {}".format(local_file_path))
+            except TimeoutExpired:
+                logging.warning("de4dot timed out on {}".format(local_file_path))
                 p.kill()
                 _, stderr = p.communicate()
-        except Exception as e:
+        except Exception:
             # analysis.details['error'] = str(e)
-            logging.info(f'DotnetDeobfuscate analysis failed for {local_file_path}')
+            logging.info(f'de4dot analysis failed for {local_file_path}')
             return AnalysisExecutionResult.COMPLETED
 
-        if not b'Detected' in stdout:
+        if b'Detected' not in stdout:
             logging.debug(f"No obfuscation detected for file: {local_file_path}")
             return AnalysisExecutionResult.COMPLETED
 
@@ -93,18 +132,18 @@ class DotnetDeobfuscateAnalyzer(AnalysisModule):
         # If exe is obfuscated, deobfuscate with de4dot
         try:
             # Deobfuscate (de4dot requires you give the full output path/filename
-            p = Popen(['dotnet', self.de4dot_path, local_file_path, '-o', out_file], stdout=PIPE, stderr=PIPE)
+            p = Popen(['de4dot', local_file_path, '-o', out_file], stdout=PIPE, stderr=PIPE)
 
             try:
                 _, _ = p.communicate(timeout=10)
-            except TimeoutExpired as e:
-                logging.warning("DotnetDeobfuscate timed out on {}".format(local_file_path))
+            except TimeoutExpired:
+                logging.warning("de4dot timed out on {}".format(local_file_path))
                 p.kill()
                 _, stderr = p.communicate()
 
         except Exception as e:
             analysis.details['error'] = str(e)
-            logging.info(f'DotnetDeobfuscate analysis failed for {local_file_path}')
+            logging.info(f'de4dot analysis failed for {local_file_path}')
         
         # Add any extracted files as file observables
         for f in os.listdir(output_path):
@@ -117,6 +156,6 @@ class DotnetDeobfuscateAnalyzer(AnalysisModule):
                     file_observable.redirection = _file
             
 
-        logging.debug(f'DotnetDeobfuscate Analysis succeeded')
+        logging.debug('de4dot Analysis succeeded')
 
         return AnalysisExecutionResult.COMPLETED
