@@ -130,14 +130,14 @@ def test_load_hunt_with_includes(manager_kwargs):
     os.remove(ips_txt)
 
 @pytest.mark.integration
-def test_splunk_query(manager_kwargs):
+def test_splunk_query(manager_kwargs, datadir):
     manager = HuntManager(**manager_kwargs)
     manager.load_hunts_from_config(hunt_filter=lambda hunt: hunt.name == 'Test Splunk Query')
     assert len(manager.hunts) == 1
     hunt = manager.get_hunt_by_name('Test Splunk Query')
     assert hunt
 
-    with open('test_data/hunts/splunk/test_output.json', 'r') as fp:
+    with open(str(datadir / 'hunts/splunk/test_output.json'), 'r') as fp:
         query_results = json.load(fp)
 
     result = hunt.execute(unit_test_query_results=query_results)
@@ -176,7 +176,7 @@ def test_splunk_query(manager_kwargs):
 
 @pytest.mark.skip(reason="missing file")
 @pytest.mark.integration
-def test_splunk_query_observable_id_mapping(manager_kwargs):
+def test_splunk_query_observable_id_mapping(manager_kwargs, datadir):
     class ObservableStub:
         def __init__(self, type, value):
             self.type = type
@@ -192,7 +192,7 @@ def test_splunk_query_observable_id_mapping(manager_kwargs):
     hunt = manager.get_hunt_by_name('Test Splunk Observable ID Mapping')
     assert hunt
 
-    with open('test_data/hunts/splunk/test_output_2.json', 'r') as fp:
+    with open(str(datadir / 'hunts/splunk/test_output_2.json'), 'r') as fp:
         query_results = json.load(fp)
 
     result = hunt.execute(unit_test_query_results=query_results, mock_db_observables=mock_db_observables)
@@ -204,7 +204,7 @@ def test_splunk_query_observable_id_mapping(manager_kwargs):
 
 @pytest.mark.skip(reason="missing file")
 @pytest.mark.integration
-def test_splunk_query_multiple_observable_id_mapping(manager_kwargs):
+def test_splunk_query_multiple_observable_id_mapping(manager_kwargs, datadir):
     class ObservableStub:
         def __init__(self, type, value):
             self.type = type
@@ -221,7 +221,7 @@ def test_splunk_query_multiple_observable_id_mapping(manager_kwargs):
     hunt = manager.get_hunt_by_name('Test Splunk Observable ID Mapping')
     assert hunt
 
-    with open('test_data/hunts/splunk/test_list_output.json', 'r') as fp:
+    with open(str(datadir / 'hunts/splunk/test_list_output.json'), 'r') as fp:
         query_results = json.load(fp)
 
     result = hunt.execute(unit_test_query_results=query_results, mock_db_observables=mock_db_observables)

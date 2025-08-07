@@ -1,6 +1,5 @@
 import base64
 import json
-import os
 import pytest
 
 from app.application import (

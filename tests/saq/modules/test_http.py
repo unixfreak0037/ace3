@@ -45,14 +45,9 @@ def verify(root):
     assert root.find_observable(lambda o: o.type == F_FILE and o.file_name == 'CZZiJd1zicZKNMMrV1.0.reply.entity')
     assert root.find_observable(lambda o: o.type == F_FILE and o.file_name == 'CZZiJd1zicZKNMMrV1.0.request')
     assert root.description == 'BRO HTTP Scanner Detection - GET /samples/pdf.pdf'
-    #for file_name in [ 'CZZiJd1zicZKNMMrV1.0.ready',
-                        #'CZZiJd1zicZKNMMrV1.0.reply',
-                        #'CZZiJd1zicZKNMMrV1.0.reply.entity',
-                        #'CZZiJd1zicZKNMMrV1.0.request' ]:
-        #assert os.path.exists(os.path.join('test_data', 'http_streams', file_name))
 
 @pytest.mark.integration
-def test_bro_http_analyzer(root_analysis):
+def test_bro_http_analyzer(root_analysis, datadir):
     get_config()['analysis_mode_http']['cleanup'] = 'no'
 
     root_analysis.alert_type = ANALYSIS_TYPE_BRO_HTTP
@@ -61,7 +56,7 @@ def test_bro_http_analyzer(root_analysis):
                         'CZZiJd1zicZKNMMrV1.0.reply', 
                         'CZZiJd1zicZKNMMrV1.0.reply.entity', 
                         'CZZiJd1zicZKNMMrV1.0.request' ]:
-        source_path = os.path.join('test_data', 'http_streams', file_name)
+        source_path = str(datadir / 'http_streams' / file_name)
         root_analysis.add_file_observable(source_path)
         
     root_analysis.save()
@@ -76,24 +71,24 @@ def test_bro_http_analyzer(root_analysis):
     verify(root_analysis)
 
 @pytest.mark.integration
-def test_bro_http_submission(test_client):
+def test_bro_http_submission(test_client, datadir):
     get_config()['analysis_mode_http']['cleanup'] = 'no'
 
     event_time = get_local_timezone().localize(datetime.now()).astimezone(pytz.UTC).strftime(EVENT_TIME_FORMAT_JSON_TZ)
 
-    ready_path = os.path.join('test_data', 'http_streams', 'CZZiJd1zicZKNMMrV1.0.ready')
+    ready_path = str(datadir / 'http_streams' / 'CZZiJd1zicZKNMMrV1.0.ready')
     ready_sha256 = sha256_file(ready_path)
     ready_fp = open(ready_path, 'rb')
 
-    reply_path = os.path.join('test_data', 'http_streams', 'CZZiJd1zicZKNMMrV1.0.reply')
+    reply_path = str(datadir / 'http_streams' / 'CZZiJd1zicZKNMMrV1.0.reply')
     reply_sha256 = sha256_file(reply_path)
     reply_fp = open(reply_path, 'rb')
 
-    reply_entity_path = os.path.join('test_data', 'http_streams', 'CZZiJd1zicZKNMMrV1.0.reply.entity')
+    reply_entity_path = str(datadir / 'http_streams' / 'CZZiJd1zicZKNMMrV1.0.reply.entity')
     reply_entity_sha256 = sha256_file(reply_entity_path)
     reply_entity_fp = open(reply_entity_path, 'rb')
 
-    request_path = os.path.join('test_data', 'http_streams', 'CZZiJd1zicZKNMMrV1.0.request')
+    request_path = str(datadir / 'http_streams' / 'CZZiJd1zicZKNMMrV1.0.request')
     request_sha256 = sha256_file(request_path)
     request_fp = open(request_path, 'rb')
 

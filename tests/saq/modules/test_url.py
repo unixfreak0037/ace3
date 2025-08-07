@@ -1,8 +1,6 @@
-import http
 import os
-import socketserver
-import threading
 import pytest
+from unittest.mock import Mock
 
 from saq.analysis.root import load_root
 from saq.configuration.config import get_config
@@ -12,12 +10,10 @@ from saq.engine.engine_configuration import EngineConfiguration
 from saq.engine.enums import EngineExecutionMode
 from saq.environment import g
 from saq.modules.url.crawlphish import CrawlphishAnalysisV2, CrawlphishAnalyzer
-from tests.saq.helpers import create_root_analysis, log_count
+from tests.saq.helpers import log_count
 
-LOCAL_PORT = 43124
-    
 @pytest.fixture(autouse=True, scope="function")
-def setup():
+def disable_proxy():
     # disable proxy for crawlphish
     get_config()['proxy']['transport'] = ''
     get_config()['proxy']['host'] = ''
@@ -25,26 +21,11 @@ def setup():
     get_config()['proxy']['user'] = ''
     get_config()['proxy']['password'] = ''
 
-@pytest.fixture
-def custom_tcp_server():
-
-    class _customTCPServer(socketserver.TCPServer):
-        allow_reuse_address = True
-
-    web_server = _customTCPServer(('', LOCAL_PORT), http.server.SimpleHTTPRequestHandler)
-    web_server_thread = threading.Thread(target=web_server.serve_forever)
-    web_server_thread.daemon = True
-    web_server_thread.start()
-
-    yield
-
-    web_server.shutdown()
-
 @pytest.mark.integration
 def test_url_download_conditions_no_directive(root_analysis):
 
     root_analysis.analysis_mode = "test_groups"
-    url = root_analysis.add_observable_by_spec(F_URL, 'http://localhost:{}/test_data/crawlphish.000'.format(LOCAL_PORT))
+    url = root_analysis.add_observable_by_spec(F_URL, 'http://example.com/test_file')
     root_analysis.save()
     root_analysis.schedule()
     
@@ -59,14 +40,33 @@ def test_url_download_conditions_no_directive(root_analysis):
     assert not analysis
 
 @pytest.mark.integration
-def test_url_download_conditions_with_directive(root_analysis):
+def test_url_download_conditions_with_directive(root_analysis, monkeypatch, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    url = root_analysis.add_observable_by_spec(F_URL, 'http://localhost:{}/test_data/crawlphish.000'.format(LOCAL_PORT))
+    url = root_analysis.add_observable_by_spec(F_URL, 'http://example.com/test_file')
     url.add_directive(DIRECTIVE_CRAWL)
     root_analysis.save()
     root_analysis.schedule()
     
+    # Mock the requests.Session.request method
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.reason = 'OK'
+    mock_response.headers = {'content-type': 'text/html'}
+    mock_response.history = []
+    mock_response.url = 'http://example.com/test_file'
+    
+    # Read the test data content
+    with open(os.path.join(datadir, 'crawlphish.000'), 'rb') as f:
+        test_content = f.read()
+    
+    mock_response.iter_content.return_value = [test_content]
+    
+    def mock_request(*args, **kwargs):
+        return mock_response
+    
+    monkeypatch.setattr('requests.Session.request', mock_request)
+    
     engine = Engine()
     engine.configuration_manager.enable_module('analysis_module_crawlphish', 'test_groups')
     engine.start_single_threaded(execution_mode=EngineExecutionMode.UNTIL_COMPLETE)
@@ -78,13 +78,32 @@ def test_url_download_conditions_with_directive(root_analysis):
     assert isinstance(analysis, CrawlphishAnalysisV2)
 
 @pytest.mark.integration
-def test_url_download_conditions_manual_alert(root_analysis):
+def test_url_download_conditions_manual_alert(root_analysis, monkeypatch, datadir):
 
     root_analysis.analysis_mode = "test_groups"
     root_analysis.alert_type = ANALYSIS_TYPE_MANUAL
-    url = root_analysis.add_observable_by_spec(F_URL, 'http://localhost:{}/test_data/crawlphish.000'.format(LOCAL_PORT))
+    url = root_analysis.add_observable_by_spec(F_URL, 'http://example.com/test_file')
     root_analysis.save()
     root_analysis.schedule()
+    
+    # Mock the requests.Session.request method
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.reason = 'OK'
+    mock_response.headers = {'content-type': 'text/html'}
+    mock_response.history = []
+    mock_response.url = 'http://example.com/test_file'
+    
+    # Read the test data content
+    with open(os.path.join(datadir, 'crawlphish.000'), 'rb') as f:
+        test_content = f.read()
+    
+    mock_response.iter_content.return_value = [test_content]
+    
+    def mock_request(*args, **kwargs):
+        return mock_response
+    
+    monkeypatch.setattr('requests.Session.request', mock_request)
     
     engine = Engine()
     engine.configuration_manager.enable_module('analysis_module_crawlphish', 'test_groups')
@@ -97,14 +116,33 @@ def test_url_download_conditions_manual_alert(root_analysis):
     assert isinstance(analysis, CrawlphishAnalysisV2)
 
 @pytest.mark.integration
-def test_url_download_conditions_auto_crawl(root_analysis):
+def test_url_download_conditions_auto_crawl(root_analysis, monkeypatch, datadir):
 
     get_config()['analysis_module_crawlphish']['auto_crawl_all_alert_urls'] = 'yes'
     root_analysis.analysis_mode = "test_groups"
     root_analysis.analysis_mode = ANALYSIS_MODE_CORRELATION
-    url = root_analysis.add_observable_by_spec(F_URL, 'http://localhost:{}/test_data/crawlphish.000'.format(LOCAL_PORT))
+    url = root_analysis.add_observable_by_spec(F_URL, 'http://example.com/test_file')
     root_analysis.save()
     root_analysis.schedule()
+    
+    # Mock the requests.Session.request method
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.reason = 'OK'
+    mock_response.headers = {'content-type': 'text/html'}
+    mock_response.history = []
+    mock_response.url = 'http://example.com/test_file'
+    
+    # Read the test data content
+    with open(os.path.join(datadir, 'crawlphish.000'), 'rb') as f:
+        test_content = f.read()
+    
+    mock_response.iter_content.return_value = [test_content]
+    
+    def mock_request(*args, **kwargs):
+        return mock_response
+    
+    monkeypatch.setattr('requests.Session.request', mock_request)
     
     engine = Engine(config=EngineConfiguration(local_analysis_modes=[ANALYSIS_MODE_CORRELATION]))
     engine.configuration_manager.enable_module('analysis_module_crawlphish', 'correlation')
@@ -116,15 +154,33 @@ def test_url_download_conditions_auto_crawl(root_analysis):
     analysis = url.get_and_load_analysis(CrawlphishAnalysisV2)
     assert isinstance(analysis, CrawlphishAnalysisV2)
 
-@pytest.mark.skip(reason="These tests with the TCP server sometimes fail because they are already listening.")
-@pytest.mark.system
-def test_basic_download(custom_tcp_server, root_analysis):
+@pytest.mark.integration
+def test_basic_download(root_analysis, monkeypatch, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    url = root_analysis.add_observable_by_spec(F_URL, 'http://localhost:{}/test_data/crawlphish.000'.format(LOCAL_PORT))
+    url = root_analysis.add_observable_by_spec(F_URL, 'http://example.com/crawlphish.000')
     url.add_directive(DIRECTIVE_CRAWL)
     root_analysis.save()
     root_analysis.schedule()
+    
+    # Mock the requests.Session.request method
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.reason = 'OK'
+    mock_response.headers = {'content-type': 'text/html'}
+    mock_response.history = []
+    mock_response.url = 'http://example.com/crawlphish.000'
+    
+    # Read the test data content
+    with open(os.path.join(datadir, 'crawlphish.000'), 'rb') as f:
+        test_content = f.read()
+    
+    mock_response.iter_content.return_value = [test_content]
+    
+    def mock_request(*args, **kwargs):
+        return mock_response
+    
+    monkeypatch.setattr('requests.Session.request', mock_request)
     
     engine = Engine()
     engine.configuration_manager.enable_module('analysis_module_crawlphish', 'test_groups')
@@ -148,9 +204,8 @@ def test_basic_download(custom_tcp_server, root_analysis):
     assert file_observable.has_directive(DIRECTIVE_EXTRACT_URLS)
     assert file_observable.has_relationship(R_DOWNLOADED_FROM)
 
-@pytest.mark.skip(reason="These tests with the TCP server sometimes fail because they are already listening.")
-@pytest.mark.system
-def test_download_multiple_uas_duplicate_content(custom_tcp_server, root_analysis):
+@pytest.mark.integration
+def test_download_multiple_uas_duplicate_content(root_analysis, monkeypatch, datadir):
 
     # tests the case where we are multiple multiple user agent strings
     # and each request returns the same data
@@ -162,10 +217,29 @@ def test_download_multiple_uas_duplicate_content(custom_tcp_server, root_analysi
         fp.write("user-agent-1\nuser-agent-2\n")
 
     root_analysis.analysis_mode = "test_groups"
-    url = root_analysis.add_observable_by_spec(F_URL, 'http://localhost:{}/test_data/crawlphish.000'.format(LOCAL_PORT))
+    url = root_analysis.add_observable_by_spec(F_URL, 'http://example.com/crawlphish.000')
     url.add_directive(DIRECTIVE_CRAWL)
     root_analysis.save()
     root_analysis.schedule()
+    
+    # Mock the requests.Session.request method
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.reason = 'OK'
+    mock_response.headers = {'content-type': 'text/html'}
+    mock_response.history = []
+    mock_response.url = 'http://example.com/crawlphish.000'
+    
+    # Read the test data content
+    with open(os.path.join(datadir, 'crawlphish.000'), 'rb') as f:
+        test_content = f.read()
+    
+    mock_response.iter_content.return_value = [test_content]
+    
+    def mock_request(*args, **kwargs):
+        return mock_response
+    
+    monkeypatch.setattr('requests.Session.request', mock_request)
     
     engine = Engine()
     engine.configuration_manager.enable_module('analysis_module_crawlphish', 'test_groups')
@@ -177,7 +251,7 @@ def test_download_multiple_uas_duplicate_content(custom_tcp_server, root_analysi
     analysis = url.get_and_load_analysis(CrawlphishAnalysisV2)
 
     assert analysis.status_code == 200
-    assert analysis.file_name, 'crawlphish.000'
+    assert analysis.file_name == 'crawlphish.000'
     assert analysis.downloaded
     assert analysis.error_reason is None
 
@@ -196,16 +270,32 @@ def test_download_multiple_uas_duplicate_content(custom_tcp_server, root_analysi
     # there should be some extra content added to the details
     assert 'user-agent-1' in analysis.details['extended_information']['GLOBAL']
 
-@pytest.mark.skip(reason="These tests with the TCP server sometimes fail because they are already listening.")
-@pytest.mark.system
-def test_download_404(custom_tcp_server, root_analysis):
+@pytest.mark.integration
+def test_download_404(root_analysis, monkeypatch):
     """We should download even if we get an error results back."""
 
     root_analysis.analysis_mode = "test_groups"
-    url = root_analysis.add_observable_by_spec(F_URL, 'http://localhost:{}/test_data/crawlphish.001'.format(LOCAL_PORT))
+    url = root_analysis.add_observable_by_spec(F_URL, 'http://example.com/nonexistent.html')
     url.add_directive(DIRECTIVE_CRAWL)
     root_analysis.save()
     root_analysis.schedule()
+    
+    # Mock the requests.Session.request method to return 404
+    mock_response = Mock()
+    mock_response.status_code = 404
+    mock_response.reason = 'Not Found'
+    mock_response.headers = {'content-type': 'text/html'}
+    mock_response.history = []
+    mock_response.url = 'http://example.com/nonexistent.html'
+    
+    # Even for 404, we might get some error page content
+    test_content = b'<html><body>Not Found</body></html>'
+    mock_response.iter_content.return_value = [test_content]
+    
+    def mock_request(*args, **kwargs):
+        return mock_response
+    
+    monkeypatch.setattr('requests.Session.request', mock_request)
     
     engine = Engine()
     engine.configuration_manager.enable_module('analysis_module_crawlphish', 'test_groups')
@@ -219,7 +309,7 @@ def test_download_404(custom_tcp_server, root_analysis):
     assert analysis.proxy_results['GLOBAL'].status_code == 404
     if 'tor' in analysis.proxy_results:
         assert analysis.proxy_results['tor'].status_code is None
-    assert analysis.file_name == 'crawlphish.001'
+    assert analysis.file_name == 'nonexistent.html'
     assert analysis.downloaded
     assert analysis.error_reason is None
     

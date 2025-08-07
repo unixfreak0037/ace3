@@ -4,21 +4,20 @@ import gzip
 import json
 import os
 import shutil
-import uuid
 import pytest
 import pytz
 
 from saq.analysis.root import RootAnalysis, load_root
 from saq.configuration.config import get_config, get_config_value
 from saq.constants import ANALYSIS_TYPE_BRO_SMTP, ANALYSIS_TYPE_MAILBOX, CONFIG_API, CONFIG_API_KEY, CONFIG_SPLUNK_LOGGING, CONFIG_SPLUNK_LOGGING_DIR, DB_BROCESS, DB_EMAIL_ARCHIVE, DIRECTIVE_ARCHIVE, DIRECTIVE_EXTRACT_URLS, DIRECTIVE_ORIGINAL_EMAIL, DIRECTIVE_PREVIEW, DIRECTIVE_REMEDIATE, DIRECTIVE_RENAME_ANALYSIS, EVENT_TIME_FORMAT_JSON_TZ, F_EMAIL_ADDRESS, F_EMAIL_CONVERSATION, F_EMAIL_DELIVERY, F_FILE, F_MESSAGE_ID, F_URL, G_ENCRYPTION_KEY, G_TEMP_DIR, create_email_conversation, create_email_delivery
-from saq.crypto import decrypt, set_encryption_password
+from saq.crypto import decrypt
 from saq.database.model import load_alert
 from saq.database.pool import get_db_connection
 from saq.email import normalize_email_address
 from saq.engine.core import Engine
 from saq.engine.engine_configuration import EngineConfiguration
 from saq.engine.enums import EngineExecutionMode
-from saq.environment import g, g_obj, get_data_dir, get_local_timezone, set_g
+from saq.environment import g, g_obj, get_data_dir, get_local_timezone
 from saq.json_encoding import _JSONEncoder
 from saq.modules.email.archive import EmailArchiveResults
 from saq.modules.email.correlation import URLEmailPivotAnalysis_v2
@@ -26,9 +25,8 @@ from saq.modules.email.logging import EmailLoggingAnalyzer
 from saq.modules.email.mailbox import MAILBOX_ALERT_PREFIX
 from saq.modules.email.message_id import MessageIDAnalysisV2
 from saq.modules.email.rfc822 import EmailAnalysis
-from saq.modules.adapter import AnalysisModuleAdapter
 from saq.util.hashing import sha256_file
-from saq.util.uuid import storage_dir_from_uuid, workload_storage_dir
+from saq.util.uuid import workload_storage_dir
 from tests.saq.helpers import create_root_analysis, start_api_server, stop_api_server
 
 @pytest.fixture
@@ -39,11 +37,11 @@ def api_server():
 
 
 @pytest.mark.integration
-def test_mailbox(root_analysis):
+def test_mailbox(root_analysis, datadir):
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.details = { 'hello': 'world' }
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     root_analysis.save()
     root_analysis.schedule()
@@ -64,12 +62,12 @@ def test_mailbox(root_analysis):
     assert root_analysis.description.startswith(MAILBOX_ALERT_PREFIX)
 
 @pytest.mark.integration
-def test_no_mailbox(root_analysis):
+def test_no_mailbox(root_analysis, datadir):
     # make sure that when we analyze emails in non-mailbox analysis that we don't treat it like it came from mailbox
     root_analysis.alert_type = "not-mailbox" # <-- different alert_type
     root_analysis.details = { 'hello': 'world' }
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     root_analysis.save()
     root_analysis.schedule()
@@ -85,15 +83,15 @@ def test_no_mailbox(root_analysis):
     # we should still have our old details
     assert 'hello' in root_analysis.details
     # and we should NOT have the email details merged in since it's not a mailbox analysis
-    assert not 'email' in root_analysis.details
+    assert 'email' not in root_analysis.details
 
 @pytest.mark.integration
-def test_mailbox_whitelisted(root_analysis):
+def test_mailbox_whitelisted(root_analysis, datadir):
     # make sure that we do not process whitelisted emails
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.details = { 'hello': 'world' }
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     file_observable.whitelist()
     root_analysis.save()
@@ -110,18 +108,18 @@ def test_mailbox_whitelisted(root_analysis):
     # we should still have our old details
     assert 'hello' in root_analysis.details
     # and we should NOT have the email details merged in since it's not a mailbox analysis
-    assert not 'email' in root_analysis.details
+    assert 'email' not in root_analysis.details
     # and we should be whitelisted at this point
     assert root_analysis.whitelisted
 
 @pytest.mark.integration
-def test_mailbox_submission(test_client, root_analysis):
+def test_mailbox_submission(test_client, root_analysis, datadir):
     from flask import url_for
     from saq.modules.email import EmailAnalysis
 
     event_time = get_local_timezone().localize(datetime.now()).astimezone(pytz.UTC).strftime(EVENT_TIME_FORMAT_JSON_TZ)
-    sha256 = sha256_file(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
-    with open(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'), 'rb') as fp:
+    sha256 = sha256_file(str(datadir / 'emails/splunk_logging.email.rfc822'))
+    with open(str(datadir / 'emails/splunk_logging.email.rfc822'), 'rb') as fp:
         result = test_client.post(url_for('analysis.submit'), data={
             'analysis': json.dumps({
                 'analysis_mode': 'email',
@@ -169,7 +167,7 @@ def test_mailbox_submission(test_client, root_analysis):
     assert analysis.details == root_analysis.details
 
 @pytest.mark.integration
-def test_splunk_logging(root_analysis):
+def test_splunk_logging(root_analysis, datadir):
 
     # clear splunk logging directory
     splunk_log_dir = os.path.join(get_data_dir(), get_config()[CONFIG_SPLUNK_LOGGING][CONFIG_SPLUNK_LOGGING_DIR], 'smtp')
@@ -179,7 +177,7 @@ def test_splunk_logging(root_analysis):
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     root_analysis.save()
     root_analysis.schedule()
@@ -237,11 +235,11 @@ def test_splunk_logging(root_analysis):
                                 'mail_to,message_id,originating_ip,path,reply_to,size,subject,user_agent,archive_path,x_mailer')
 
 @pytest.mark.integration
-def test_update_brocess(root_analysis):
+def test_update_brocess(root_analysis, datadir):
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     root_analysis.save()
     root_analysis.schedule()
@@ -278,7 +276,7 @@ def test_update_brocess(root_analysis):
 
     root_analysis = create_root_analysis(alert_type=ANALYSIS_TYPE_MAILBOX, analysis_mode="test_groups")
     root_analysis.initialize_storage()
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     root_analysis.save()
     root_analysis.schedule()
@@ -297,11 +295,11 @@ def test_update_brocess(root_analysis):
         assert count[0] == 2
 
 @pytest.mark.integration
-def test_archive_1(root_analysis):
+def test_archive_1(root_analysis, datadir):
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ARCHIVE)
     root_analysis.save()
     root_analysis.schedule()
@@ -353,13 +351,13 @@ def test_archive_1(root_analysis):
         assert row
 
 @pytest.mark.integration
-def test_archive_extraction(mock_api_call, root_analysis):
+def test_archive_extraction(mock_api_call, root_analysis, datadir):
 
     # when we have the email already analyzed we don't need to extract it from the archives
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'pdf_attachment.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/pdf_attachment.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ARCHIVE)
     root_analysis.save()
     root_analysis.schedule()
@@ -405,11 +403,11 @@ def test_archive_extraction(mock_api_call, root_analysis):
     assert len(message_id_analysis.get_observables_by_type(F_FILE)) == 1
 
 @pytest.mark.integration
-def test_archive_2(root_analysis):
+def test_archive_2(root_analysis, datadir):
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'pdf_attachment.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/pdf_attachment.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ARCHIVE)
     root_analysis.save()
     root_analysis.schedule()
@@ -459,14 +457,14 @@ def test_archive_2(root_analysis):
         assert row
 
 @pytest.mark.integration
-def test_archive_no_local_archive(root_analysis, monkeypatch):
+def test_archive_no_local_archive(root_analysis, monkeypatch, datadir):
 
     # disable archive encryption
     monkeypatch.setattr(g_obj(G_ENCRYPTION_KEY), "value", None)
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ARCHIVE)
     root_analysis.save()
     root_analysis.schedule()
@@ -491,13 +489,13 @@ def test_archive_no_local_archive(root_analysis, monkeypatch):
     assert archive_results.archive_id is None
 
 @pytest.mark.integration
-def test_email_pivot(root_analysis):
+def test_email_pivot(root_analysis, datadir):
 
     # process the email first -- we'll find it when we pivot
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     file_observable.add_directive(DIRECTIVE_ARCHIVE)
     root_analysis.save()
@@ -543,13 +541,13 @@ def test_email_pivot(root_analysis):
     assert analysis.count == 1
 
 @pytest.mark.integration
-def test_email_pivot_excessive_emails(root_analysis):
+def test_email_pivot_excessive_emails(root_analysis, datadir):
 
     # process the email first -- we'll find it when we pivot
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     file_observable.add_directive(DIRECTIVE_ARCHIVE)
     root_analysis.save()
@@ -599,7 +597,7 @@ def test_email_pivot_excessive_emails(root_analysis):
     assert analysis.emails is None
 
 @pytest.mark.integration
-def test_message_id(root_analysis):
+def test_message_id(root_analysis, datadir):
 
     # make sure we extract the correct message-id
     # this test email has an attachment that contains a message-id
@@ -607,7 +605,7 @@ def test_message_id(root_analysis):
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'extra_message_id.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/extra_message_id.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     root_analysis.save()
     root_analysis.schedule()
@@ -630,13 +628,13 @@ def test_message_id(root_analysis):
     assert message_id.value == "<MW2PR16MB224997B938FB40AA00214DACA8590@MW2PR16MB2249.namprd16.prod.outlook.com>"
 
 @pytest.mark.integration
-def test_basic_email_parsing(root_analysis):
+def test_basic_email_parsing(root_analysis, datadir):
 
     # parse a basic email message
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     root_analysis.save()
     root_analysis.schedule()
@@ -705,13 +703,13 @@ def test_basic_email_parsing(root_analysis):
             assert file_observable.has_directive(DIRECTIVE_EXTRACT_URLS)
 
 @pytest.mark.integration
-def test_basic_smtp_email_parsing(root_analysis):
+def test_basic_smtp_email_parsing(root_analysis, datadir):
 
     # parse a basic email message we got from the smtp collector
 
     root_analysis.alert_type = ANALYSIS_TYPE_BRO_SMTP
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'smtp.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/smtp.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     observable = root_analysis.add_observable_by_spec(F_EMAIL_ADDRESS, 'unixfreak0037@gmail.com')
     observable.add_tag('smtp_mail_from')
@@ -780,11 +778,11 @@ def test_basic_smtp_email_parsing(root_analysis):
             assert file_observable.has_directive(DIRECTIVE_EXTRACT_URLS)
 
 @pytest.mark.integration
-def test_alert_renaming(root_analysis):
+def test_alert_renaming(root_analysis, datadir):
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     file_observable.add_directive(DIRECTIVE_RENAME_ANALYSIS)
     root_analysis.save()
@@ -802,13 +800,13 @@ def test_alert_renaming(root_analysis):
     assert root_analysis.description == f'{old_description} - canary #3'
 
 @pytest.mark.integration
-def test_o365_journal_email_parsing(root_analysis):
+def test_o365_journal_email_parsing(root_analysis, datadir):
 
     # parse an office365 journaled message
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'o365_journaled.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/o365_journaled.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     root_analysis.save()
     root_analysis.schedule()
@@ -855,7 +853,7 @@ def test_o365_journal_email_parsing(root_analysis):
     "smtp_to:lulu.zingzing@company.com",
 ])
 @pytest.mark.integration
-def test_whitelisting(root_analysis, whitelist_item):
+def test_whitelisting(root_analysis, whitelist_item, datadir):
 
     whitelist_path = os.path.join(g(G_TEMP_DIR), 'brotex.whitelist')
     get_config()['analysis_module_email_analyzer']['whitelist_path'] = whitelist_path
@@ -868,7 +866,7 @@ def test_whitelisting(root_analysis, whitelist_item):
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'o365_journaled.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/o365_journaled.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     root_analysis.save()
     root_analysis.schedule()
@@ -886,11 +884,11 @@ def test_whitelisting(root_analysis, whitelist_item):
     assert not email_analysis
 
 @pytest.mark.integration
-def test_automated_msoffice_decryption(root_analysis):
+def test_automated_msoffice_decryption(root_analysis, datadir):
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
     target_path = root_analysis.create_file_path('encrypted_msoffice.email.rfc822')
-    decrypt(os.path.join('test_data', 'encrypted', 'encrypted_msoffice.email.rfc822.e'), 
+    decrypt(str(datadir / 'emails/encrypted_msoffice.email.rfc822.e'), 
             target_path,
             password='ace')
     file_observable = root_analysis.add_file_observable(target_path)
@@ -923,14 +921,14 @@ def test_automated_msoffice_decryption(root_analysis):
     assert msoffice_analysis.find_observable(lambda o: o.type == F_FILE and o.file_name == 'info_3805.xls.decrypted')
 
 @pytest.mark.integration
-def test_message_id_remediation(root_analysis):
+def test_message_id_remediation(root_analysis, datadir):
 
     #
     # if the message_id has the remediate directive, then the corresponding email delivery should also have it
 
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     message_id_observable = root_analysis.add_observable_by_spec(F_MESSAGE_ID, '<CANTOGZsMiMb+7aB868zXSen_fO=NS-qFTUMo9h2eHtOexY8Qhw@mail.gmail.com>')
     message_id_observable.add_directive(DIRECTIVE_REMEDIATE)
@@ -962,7 +960,7 @@ def test_message_id_remediation(root_analysis):
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
     root_analysis.initialize_storage()
-    file_observable = root_analysis.add_file_observable(os.path.join('test_data', 'emails', 'splunk_logging.email.rfc822'))
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/splunk_logging.email.rfc822'))
     file_observable.add_directive(DIRECTIVE_ORIGINAL_EMAIL)
     message_id_observable = root_analysis.add_observable_by_spec(F_MESSAGE_ID, '<CANTOGZsMiMb+7aB868zXSen_fO=NS-qFTUMo9h2eHtOexY8Qhw@mail.gmail.com>')
     root_analysis.save()

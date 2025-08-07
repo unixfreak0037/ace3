@@ -1,20 +1,19 @@
 import hashlib
 import os
 import shutil
-import tempfile
 import uuid
 import pytest
 
-from saq.analysis.root import RootAnalysis, load_root
+from saq.analysis.root import load_root
 from saq.configuration.config import get_config
-from saq.constants import DIRECTIVE_CRAWL, DIRECTIVE_CRAWL_EXTRACTED_URLS, DIRECTIVE_EXTRACT_URLS, DIRECTIVE_SANDBOX, F_FILE, F_URI_PATH, F_URL, F_YARA_RULE, G_TEMP_DIR, R_EXTRACTED_FROM
-from saq.crypto import decrypt, set_encryption_password
-from saq.database.model import Observable, load_alert
+from saq.constants import DIRECTIVE_CRAWL, DIRECTIVE_CRAWL_EXTRACTED_URLS, DIRECTIVE_EXTRACT_URLS, DIRECTIVE_SANDBOX, F_FILE, F_URI_PATH, F_URL, F_YARA_RULE, R_EXTRACTED_FROM
+from saq.crypto import decrypt
+from saq.database.model import load_alert
 from saq.database.pool import get_db
 from saq.engine.core import Engine
 from saq.engine.engine_configuration import EngineConfiguration
 from saq.engine.enums import EngineExecutionMode
-from saq.environment import g, get_base_dir, get_data_dir
+from saq.environment import get_base_dir, get_data_dir
 from saq.modules.file_analysis.archive import ArchiveAnalysis
 from saq.modules.file_analysis.html import MHTMLAnalysis
 from saq.modules.file_analysis.is_file_type import is_msi_file, is_ole_file
@@ -27,20 +26,16 @@ from saq.modules.file_analysis.xml import XMLPlainTextAnalysis
 from saq.modules.file_analysis.yara import YaraScanResults_v3_4
 from saq.observables.file import FileObservable
 from saq.util.hashing import sha256_file
-from saq.util.uuid import storage_dir_from_uuid
 from saq.yara_scanning_service import YSSService
-from tests.saq.helpers import create_root_analysis, log_count, wait_for_log_count
+from tests.saq.helpers import create_root_analysis, log_count
 
 UNITTEST_SOCKET_DIR = 'socket_unittest'
 
-def get_yara_rules_dir():
-    return os.path.join(get_base_dir(), 'test_data', 'yara_rules')
-
 @pytest.fixture(autouse=True, scope="function")
-def setup():
+def setup(datadir):
     service_config = get_config()['service_yara']
     service_config['socket_dir'] = UNITTEST_SOCKET_DIR
-    service_config['signature_dir'] = get_yara_rules_dir()
+    service_config['signature_dir'] = str(datadir / 'yara_rules')
 
 @pytest.fixture
 def yss_server():
@@ -52,13 +47,11 @@ def yss_server():
     yara_service.wait()
 
 @pytest.mark.integration
-def test_file_analysis_000_url_extraction_001_pdfparser(root_analysis):
+def test_file_analysis_000_url_extraction_001_pdfparser(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    shutil.copy('test_data/pdf/Payment_Advice.pdf', root_analysis.storage_dir)
-    target_file = 'Payment_Advice.pdf'
     
-    file_observable = root_analysis.add_file_observable("test_data/pdf/Payment_Advice.pdf")
+    file_observable = root_analysis.add_file_observable(str(datadir / "pdf/Payment_Advice.pdf"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -86,11 +79,11 @@ def test_file_analysis_000_url_extraction_001_pdfparser(root_analysis):
     assert bad_url in [url.value for url in url_analysis.get_observables_by_type(F_URL)]
 
 @pytest.mark.integration
-def test_file_analysis_000_url_extraction_002_gs(root_analysis):
+def test_file_analysis_000_url_extraction_002_gs(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
 
-    file_observable = root_analysis.add_file_observable('test_data/pdf/ComplaintApril_424256637.pdf')
+    file_observable = root_analysis.add_file_observable(str(datadir / "pdf/ComplaintApril_424256637.pdf"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -160,15 +153,15 @@ KEY_SANDBOX = 'sandbox'
     },
 ])
 @pytest.mark.integration
-def test_file_analysis_001_oletools_000(root_analysis, result_map):
+def test_file_analysis_001_oletools_000(root_analysis, result_map, datadir):
 
     for file_name, expected_results in result_map.items():
-        if not os.path.exists(os.path.join('test_data/ole_files', file_name)):
-            pytest.skip(f"missing test data {file_name}")
-
         root_analysis.analysis_mode = "test_groups"
 
-        target_path = os.path.join('test_data/ole_files', file_name)
+        encrypted_target_path = str(datadir / f"ole_files/{file_name}.e")
+        target_path = str(datadir / f"{file_name}")
+        decrypt(encrypted_target_path, target_path, password='ace')
+
         file_observable = root_analysis.add_file_observable(target_path)
         root_analysis.save()
         root_analysis.schedule()
@@ -190,10 +183,10 @@ def test_file_analysis_001_oletools_000(root_analysis, result_map):
         assert macro_count == expected_results[KEY_MACRO_COUNT]
 
 @pytest.mark.integration
-def test_file_analysis_002_archive_000_zip(root_analysis):
+def test_file_analysis_002_archive_000_zip(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable('test_data/zip/test.zip')
+    _file = root_analysis.add_file_observable(str(datadir / "zip/test.zip"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -214,18 +207,13 @@ def test_file_analysis_002_archive_000_zip(root_analysis):
     assert len(_file) == 1
 
 @pytest.mark.integration
-def test_file_analysis_002_archive_001_rar(root_analysis):
+def test_file_analysis_002_archive_001_rar(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
 
-    # Decode the test data file...
-    with open('test_data/rar/test.r07.hex') as f:
-        data = bytes.fromhex(f.read())
-
-    # ...and write it to the root storage directory
-    target_path = root_analysis.create_file_path("test.r07")
-    with open(target_path, 'wb') as f:
-        f.write(data)
+    encrypted_target_path = str(datadir / "rar/test.r07.e")
+    target_path = str(datadir / "rar/test.r07")
+    decrypt(encrypted_target_path, target_path, password='ace')
 
     _file = root_analysis.add_file_observable(target_path)
     root_analysis.save()
@@ -273,15 +261,15 @@ def test_file_analysis_archive_skip_ole(root_analysis):
     assert not analysis
 
 @pytest.mark.integration
-def test_file_analysis_archive_malicious_msi(root_analysis):
-
+def test_file_analysis_archive_malicious_msi(root_analysis, datadir):
     from saq.crypto import decrypt
-    if not os.path.exists('test_data/msi/84ec41afdc49c2ee8dff9ba07ba5c9a4.e'):
-        pytest.skip("missing test data")
 
     root_analysis.analysis_mode = "test_groups"
-    target_path = root_analysis.create_file_path("sample.msi")
-    decrypt('test_data/msi/84ec41afdc49c2ee8dff9ba07ba5c9a4.e', target_path, password='ace')
+
+    encrypted_target_path = str(datadir / "msi/84ec41afdc49c2ee8dff9ba07ba5c9a4.e")
+    target_path = str(datadir / "msi/84ec41afdc49c2ee8dff9ba07ba5c9a4")
+    decrypt(encrypted_target_path, target_path, password='ace')
+
     _file = root_analysis.add_file_observable(target_path)
     root_analysis.save()
     root_analysis.schedule()
@@ -301,18 +289,16 @@ def test_file_analysis_archive_malicious_msi(root_analysis):
     assert analysis.file_count == 2
 
     observable_map = { _.file_path: _ for _ in analysis.get_observables_by_type(F_FILE) }
-    assert 'sample.msi.extracted/svchost.bin' in observable_map
-    assert 'sample.msi.extracted/svchost.exe' in observable_map
+    assert '84ec41afdc49c2ee8dff9ba07ba5c9a4.extracted/svchost.bin' in observable_map
+    assert '84ec41afdc49c2ee8dff9ba07ba5c9a4.extracted/svchost.exe' in observable_map
 
 @pytest.mark.unit
-def test_file_analysis_msi_identification(tmpdir):
-
+def test_file_analysis_msi_identification(tmpdir, datadir):
     from saq.crypto import decrypt
-    if not os.path.exists('test_data/msi/84ec41afdc49c2ee8dff9ba07ba5c9a4.e'):
-        pytest.skip("missing test data")
 
-    target_path = str(tmpdir / "sample.msi")
-    decrypt('test_data/msi/84ec41afdc49c2ee8dff9ba07ba5c9a4.e', target_path, password='ace')
+    encrypted_target_path = str(datadir / "msi/84ec41afdc49c2ee8dff9ba07ba5c9a4.e")
+    target_path = str(datadir / "msi/84ec41afdc49c2ee8dff9ba07ba5c9a4")
+    decrypt(encrypted_target_path, target_path, password='ace')
 
     # this should return True since it's technically an OLE file
     assert is_ole_file(target_path)
@@ -321,10 +307,10 @@ def test_file_analysis_msi_identification(tmpdir):
     assert is_msi_file(target_path)
 
 @pytest.mark.integration
-def test_file_analysis_archive_7z_under(root_analysis):
+def test_file_analysis_archive_7z_under(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable('test_data/7z/under.7z')
+    _file = root_analysis.add_file_observable(str(datadir / '7z/under.7z'))
 
     root_analysis.save()
     root_analysis.schedule()
@@ -344,14 +330,15 @@ def test_file_analysis_archive_7z_under(root_analysis):
     assert len(_file) == 1
 
 @pytest.mark.integration
-def test_file_analysis_002_archive_002_ace(root_analysis):
-
-    if not os.path.exists('test_data/ace/dhl_report.ace'):
-        pytest.skip("missing test data")
+def test_file_analysis_002_archive_002_ace(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    shutil.copy('test_data/ace/dhl_report.ace', root_analysis.storage_dir)
-    _file = root_analysis.add_file_observable('test_data/ace/dhl_report.ace')
+
+    encrypted_target_path = str(datadir / "ace/dhl_report.ace.e")
+    target_path = str(datadir / "ace/dhl_report.ace")
+    decrypt(encrypted_target_path, target_path, password='ace')
+
+    _file = root_analysis.add_file_observable(target_path)
     root_analysis.save()
     root_analysis.schedule()
 
@@ -360,7 +347,8 @@ def test_file_analysis_002_archive_002_ace(root_analysis):
     engine.configuration_manager.enable_module('analysis_module_file_type', 'test_groups')
     engine.start_single_threaded(execution_mode=EngineExecutionMode.UNTIL_COMPLETE)
 
-    root_analysis = load_root(root_analysis.storage_dir)
+    alert = load_alert(root_analysis.uuid)
+    root_analysis = alert.root_analysis
     _file = root_analysis.get_observable(_file.id)
     
     analysis = _file.get_and_load_analysis(ArchiveAnalysis)
@@ -370,16 +358,14 @@ def test_file_analysis_002_archive_002_ace(root_analysis):
     assert len(_file) == 1
 
 @pytest.mark.integration
-def test_file_analysis_002_archive_003_jar(root_analysis):
+def test_file_analysis_002_archive_003_jar(root_analysis, datadir):
 
-    if not os.path.exists('test_data/jar/test.jar'):
-        pytest.skip("missing test data")
-
-    target_path = root_analysis.create_file_path("test_jar")
-    decrypt('test_data/jar/test.jar.e', target_path, password='ace')
+    encrypted_target_path = str(datadir / "jar/test.jar.e")
+    target_path = str(datadir / "jar/test.jar")
+    decrypt(encrypted_target_path, target_path, password='ace')
 
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable('test_data/jar/test.jar')
+    _file = root_analysis.add_file_observable(target_path)
     root_analysis.save()
     root_analysis.schedule()
 
@@ -404,15 +390,15 @@ def test_file_analysis_002_archive_003_jar(root_analysis):
 
     assert decompiled_java_file
 
-@pytest.mark.system
-def test_file_analysis_002_archive_malicious_jar(root_analysis):
-
-    if not os.path.exists('test_data/jar/malicious.jar.e'):
-        pytest.skip("missing test data")
+@pytest.mark.integration
+def test_file_analysis_002_archive_malicious_jar(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    target_path = root_analysis.create_file_path("test.jar")
-    decrypt('test_data/jar/malicious.jar.e', target_path, password='ace')
+
+    encrypted_target_path = str(datadir / "jar/malicious.jar.e")
+    target_path = str(datadir / "jar/malicious.jar")
+    decrypt(encrypted_target_path, target_path, password='ace')
+
     _file = root_analysis.add_file_observable(target_path)
     root_analysis.save()
     root_analysis.schedule()
@@ -438,18 +424,17 @@ def test_file_analysis_002_archive_malicious_jar(root_analysis):
 
     assert decompiled_java_file
 
-@pytest.mark.system
-def test_file_analysis_002_archive_malicious_jar_limit(root_analysis):
+@pytest.mark.integration
+def test_file_analysis_002_archive_malicious_jar_limit(root_analysis, datadir):
 
     # limit java decompile to 1 file
     get_config()['analysis_module_archive']['java_class_decompile_limit'] = '1'
 
-    if not os.path.exists('test_data/jar/malicious.jar.e'):
-        pytest.skip("missing test data")
+    encrypted_target_path = str(datadir / "jar/malicious.jar.e")
+    target_path = str(datadir / "jar/malicious.jar")
+    decrypt(encrypted_target_path, target_path, password='ace')
 
     root_analysis.analysis_mode = "test_groups"
-    target_path = root_analysis.create_file_path("test.jar")
-    decrypt('test_data/jar/malicious.jar.e', target_path, password='ace')
     _file = root_analysis.add_file_observable(target_path)
     root_analysis.save()
     root_analysis.schedule()
@@ -480,13 +465,10 @@ def test_file_analysis_002_archive_malicious_jar_limit(root_analysis):
     assert log_count('decompiling 1 java class files') == 1
 
 @pytest.mark.integration
-def test_file_analysis_002_archive_004_jar(root_analysis):
-
-    if not os.path.exists('test_data/jar/too_many_files.jar'):
-        pytest.skip("missing test data")
+def test_file_analysis_002_archive_004_jar(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable('test_data/jar/too_many_files.jar')
+    _file = root_analysis.add_file_observable(str(datadir / 'jar/too_many_files.jar'))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -502,12 +484,12 @@ def test_file_analysis_002_archive_004_jar(root_analysis):
     assert not analysis
 
 @pytest.mark.integration
-def test_file_analysis_004_yara_001_local_scan(root_analysis):
+def test_file_analysis_004_yara_001_local_scan(root_analysis, datadir):
     
     # we do not initalize the local yss scanner so it should not be available for scanning
 
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable('test_data/scan_targets/match')
+    _file = root_analysis.add_file_observable(str(datadir / 'scan_targets/match'))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -538,12 +520,11 @@ def test_file_analysis_004_yara_001_local_scan(root_analysis):
     assert yara_rule.detections
 
 @pytest.mark.integration
-def test_file_analysis_004_yara_002_no_alert(yss_server):
+def test_file_analysis_004_yara_002_no_alert(yss_server, datadir):
     
     root = create_root_analysis(uuid=str(uuid.uuid4()))
     root.initialize_storage()
-    #shutil.copy('test_data/scan_targets/no_alert', root.storage_dir)
-    _file = root.add_file_observable('test_data/scan_targets/no_alert')
+    _file = root.add_file_observable(str(datadir / 'scan_targets/no_alert'))
     root.save()
     root.schedule()
 
@@ -570,12 +551,11 @@ def test_file_analysis_004_yara_002_no_alert(yss_server):
     assert not yara_rule.detections
 
 @pytest.mark.integration
-def test_file_analysis_004_yara_003_directives(yss_server):
+def test_file_analysis_004_yara_003_directives(yss_server, datadir):
     
     root = create_root_analysis(uuid=str(uuid.uuid4()))
     root.initialize_storage()
-    #shutil.copy('test_data/scan_targets/add_directive', root.storage_dir)
-    _file = root.add_file_observable('test_data/scan_targets/add_directive')
+    _file = root.add_file_observable(str(datadir / 'scan_targets/add_directive'))
     root.save()
     root.schedule()
 
@@ -606,11 +586,11 @@ def test_file_analysis_004_yara_003_directives(yss_server):
     assert _file.has_directive(DIRECTIVE_EXTRACT_URLS)
 
 @pytest.mark.integration
-def test_file_analysis_004_yara_004_directives_redirection(yss_server, root_analysis):
+def test_file_analysis_004_yara_004_directives_redirection(yss_server, root_analysis, datadir):
     
     root_analysis.analysis_mode = "test_groups"
-    parent_file = root_analysis.add_file_observable('test_data/scan_targets/parent_file')
-    child_file = root_analysis.add_file_observable('test_data/scan_targets/add_directive')
+    parent_file = root_analysis.add_file_observable(str(datadir / 'scan_targets/parent_file'))
+    child_file = root_analysis.add_file_observable(str(datadir / 'scan_targets/add_directive'))
     child_file.redirection = parent_file
     root_analysis.save()
     root_analysis.schedule()
@@ -638,10 +618,10 @@ def test_file_analysis_004_yara_004_directives_redirection(yss_server, root_anal
     assert yara_rule.detections
 
 @pytest.mark.integration
-def test_file_analysis_004_yara_006_whitelist(yss_server, root_analysis):
+def test_file_analysis_004_yara_006_whitelist(yss_server, root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable('test_data/scan_targets/whitelist')
+    _file = root_analysis.add_file_observable(str(datadir / 'scan_targets/whitelist'))
     root_analysis.save()
     root_analysis.schedule()
     
@@ -666,10 +646,10 @@ def test_file_analysis_004_yara_006_whitelist(yss_server, root_analysis):
     assert root_analysis.whitelisted
 
 @pytest.mark.integration
-def test_file_analysis_004_yara_007_qa_modifier(yss_server, root_analysis):
+def test_file_analysis_004_yara_007_qa_modifier(yss_server, root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable('test_data/scan_targets/qa_modifier_target')
+    _file = root_analysis.add_file_observable(str(datadir / 'scan_targets/qa_modifier_target'))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -698,7 +678,7 @@ def test_file_analysis_004_yara_007_qa_modifier(yss_server, root_analysis):
     assert os.path.exists(f'{target_path}.json')
 
 @pytest.mark.integration
-def test_file_analysis_004_yara_008_for_detection(yss_server, root_analysis):
+def test_file_analysis_004_yara_008_for_detection(yss_server, root_analysis, datadir):
     # Make sure there is one observable in the database
     from saq.database.model import Observable as DBObservable
     db_observable = DBObservable(id=1, type='uri_path', value=b'test_uri_path', sha256=b'asdf')
@@ -706,7 +686,7 @@ def test_file_analysis_004_yara_008_for_detection(yss_server, root_analysis):
     get_db().commit()
 
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable('test_data/scan_targets/for_detection')
+    _file = root_analysis.add_file_observable(str(datadir / 'scan_targets/for_detection'))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -736,13 +716,13 @@ def test_file_analysis_004_yara_008_for_detection(yss_server, root_analysis):
     assert len(uri_path_observable) == 1
 
 @pytest.mark.integration
-def test_file_analysis_005_pcode_000_extract_pcode(root_analysis):
-
-    if not os.path.exists('test_data/ole_files/word2013_macro_stripped.doc'):
-        pytest.skip("missing test data")
+def test_file_analysis_005_pcode_000_extract_pcode(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable('test_data/ole_files/word2013_macro_stripped.doc')
+    encrypted_target_path = str(datadir / "ole_files/word2013_macro_stripped.doc.e")
+    target_path = str(datadir / "ole_files/word2013_macro_stripped.doc")
+    decrypt(encrypted_target_path, target_path, password='ace')
+    _file = root_analysis.add_file_observable(target_path)
     root_analysis.save()
     root_analysis.schedule()
 
@@ -758,7 +738,7 @@ def test_file_analysis_005_pcode_000_extract_pcode(root_analysis):
     analysis = _file.get_and_load_analysis(PCodeAnalysis)
     assert analysis
     # we should have extracted 11 lines of macro
-    assert analysis.details == 11
+    assert analysis.line_count == 11
     # and we should have a file with the macros
     _file = analysis.get_observables_by_type(F_FILE)
     assert len(_file) == 1
@@ -767,15 +747,12 @@ def test_file_analysis_005_pcode_000_extract_pcode(root_analysis):
     assert _file.redirection
 
 @pytest.mark.integration
-def test_file_analysis_005_office_file_archiver_000_archive(root_analysis, tmpdir):
-
-    if not os.path.exists('test_data/ole_files/Paid Invoice.doc.e'):
-        pytest.skip("missing test data")
-
-    target_path = root_analysis.create_file_path("Paid Invoice.doc")
-    decrypt('test_data/ole_files/Paid Invoice.doc.e', target_path, password='ace')
+def test_file_analysis_005_office_file_archiver_000_archive(root_analysis, tmpdir, datadir):
 
     root_analysis.analysis_mode = "test_groups"
+    encrypted_target_path = str(datadir / "ole_files/Paid Invoice.doc.e")
+    target_path = str(datadir / "ole_files/Paid Invoice.doc")
+    decrypt(encrypted_target_path, target_path, password='ace')
     _file = root_analysis.add_file_observable(target_path)
     sha256 = _file.sha256_hash
     root_analysis.save()
@@ -832,14 +809,11 @@ def test_file_analysis_005_office_file_archiver_000_archive(root_analysis, tmpdi
     assert os.path.basename(analysis.details).startswith('000000_')
 
 @pytest.mark.integration
-def test_file_analysis_006_extracted_ole_000_js(root_analysis):
-    if not os.path.exists('test_data/docx/js_ole_obj.docx.e'):
-        pytest.skip("missing test data")
-
-    target_path = root_analysis.create_file_path("js_ole_obj.docx")
-    decrypt('test_data/docx/js_ole_obj.docx.e', target_path, password='ace')
-
+def test_file_analysis_006_extracted_ole_000_js(root_analysis, datadir):
     root_analysis.analysis_mode = "test_groups"
+    encrypted_target_path = str(datadir / "docx/js_ole_obj.docx.e")
+    target_path = str(datadir / "docx/js_ole_obj.docx")
+    decrypt(encrypted_target_path, target_path, password='ace')
     _file = root_analysis.add_file_observable(target_path)
     root_analysis.save()
     root_analysis.schedule()
@@ -858,10 +832,11 @@ def test_file_analysis_006_extracted_ole_000_js(root_analysis):
     assert any([d for d in root_analysis.all_detection_points if 'compiles as JavaScript' in d.description])
 
 @pytest.mark.integration
-def test_open_office_extraction(root_analysis):
+def test_open_office_extraction(root_analysis, datadir):
 
-    target_path = root_analysis.create_file_path("demo.odt")
-    decrypt('test_data/openoffice/demo.odt.e', target_path, password='ace')
+    encrypted_target_path = str(datadir / "openoffice/demo.odt.e")
+    target_path = str(datadir / "openoffice/demo.odt")
+    decrypt(encrypted_target_path, target_path, password='ace')
 
     root_analysis.analysis_mode = "test_groups"
     _file = root_analysis.add_file_observable(target_path)
@@ -881,12 +856,11 @@ def test_open_office_extraction(root_analysis):
     assert analysis
     assert len(analysis.get_observables_by_type(F_FILE)) == 12
 
-@pytest.mark.skip
 @pytest.mark.integration
-def test_crawl_extracted_urls(yss_server, root_analysis):
+def test_crawl_extracted_urls(yss_server, root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable('test_data/url_extraction/simple.txt')
+    _file = root_analysis.add_file_observable(str(datadir / 'url_extraction/simple.txt'))
     _file.add_directive(DIRECTIVE_EXTRACT_URLS)
     _file.add_directive(DIRECTIVE_CRAWL_EXTRACTED_URLS)
     root_analysis.save()
@@ -962,16 +936,14 @@ def test_mhtml_analysis(root_analysis):
     assert len(analysis.get_observables_by_type(F_FILE)) == 1
 
 @pytest.mark.system
-def test_officeparser_macro_extraction(root_analysis):
+def test_officeparser_macro_extraction(root_analysis, datadir):
 
     get_config()['analysis_module_officeparser3']['merge_macros'] = 'no'
 
     root_analysis.analysis_mode = "test_groups"
-    encrypted_path = 'test_data/doc/DOC_PO_10142020EX.doc.e'
-    decrypted_path = root_analysis.create_file_path('DOC_PO_10142020EX.doc')
-
+    encrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc.e")
+    decrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc")
     decrypt(encrypted_path, decrypted_path, password='ace')
-
     _file = root_analysis.add_file_observable(decrypted_path)
     root_analysis.save()
     root_analysis.schedule()
@@ -991,14 +963,13 @@ def test_officeparser_macro_extraction(root_analysis):
         assert root_analysis.find_observable(lambda o: o.type == F_FILE and os.path.basename(o.file_name) == macro_name)
 
 @pytest.mark.integration
-def test_officeparser_macro_extraction_merged(root_analysis):
+def test_officeparser_macro_extraction_merged(root_analysis, datadir):
 
     get_config()['analysis_module_officeparser3']['merge_macros'] = 'yes'
 
     root_analysis.analysis_mode = "test_groups"
-    encrypted_path = 'test_data/doc/DOC_PO_10142020EX.doc.e'
-    decrypted_path = root_analysis.create_file_path('DOC_PO_10142020EX.doc')
-
+    encrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc.e")
+    decrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc")
     decrypt(encrypted_path, decrypted_path, password='ace')
 
     _file = root_analysis.add_file_observable(decrypted_path)
@@ -1022,14 +993,13 @@ def test_officeparser_macro_extraction_merged(root_analysis):
     assert root_analysis.find_observable(lambda o: o.type == F_FILE and os.path.basename(o.file_name) == 'macros.bas')
 
 @pytest.mark.integration
-def test_olevba_macro_extraction(root_analysis):
+def test_olevba_macro_extraction(root_analysis, datadir):
 
     get_config()['analysis_module_olevba_v1_2']['merge_macros'] = 'no'
 
     root_analysis.analysis_mode = "test_groups"
-    encrypted_path = 'test_data/doc/DOC_PO_10142020EX.doc.e'
-    decrypted_path = root_analysis.create_file_path('DOC_PO_10142020EX.doc')
-
+    encrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc.e")
+    decrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc")
     decrypt(encrypted_path, decrypted_path, password='ace')
 
     _file = root_analysis.add_file_observable(decrypted_path)
@@ -1052,14 +1022,13 @@ def test_olevba_macro_extraction(root_analysis):
         assert alert.root_analysis.find_observable(lambda o: o.type == F_FILE and os.path.basename(o.file_name) == macro_name)
 
 @pytest.mark.integration
-def test_olevba_macro_extraction_merged(root_analysis):
+def test_olevba_macro_extraction_merged(root_analysis, datadir):
 
     get_config()['analysis_module_olevba_v1_2']['merge_macros'] = 'yes'
 
     root_analysis.analysis_mode = "test_groups"
-    encrypted_path = 'test_data/doc/DOC_PO_10142020EX.doc.e'
-    decrypted_path = root_analysis.create_file_path('DOC_PO_10142020EX.doc')
-
+    encrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc.e")
+    decrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc")
     decrypt(encrypted_path, decrypted_path, password='ace')
 
     _file = root_analysis.add_file_observable(decrypted_path)
@@ -1084,10 +1053,10 @@ def test_olevba_macro_extraction_merged(root_analysis):
     assert alert.root_analysis.find_observable(lambda o: o.type == F_FILE and os.path.basename(o.file_name) == 'macros.bas')
 
 @pytest.mark.integration
-def test_upx(root_analysis):
+def test_upx(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable('test_data/exe/cmd-upx.exe')
+    _file = root_analysis.add_file_observable(str(datadir / 'exe/cmd-upx.exe'))
     root_analysis.save()
     root_analysis.schedule()
 
