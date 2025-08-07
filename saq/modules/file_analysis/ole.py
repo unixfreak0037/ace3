@@ -54,7 +54,7 @@ class ExtractedOLEAnalyzer(AnalysisModule):
     def execute_analysis(self, _file: FileObservable) -> AnalysisExecutionResult:
 
         from saq.modules.file_analysis.file_type import FileTypeAnalysis
-        from saq.modules.file_analysis.officeparser import OfficeParserAnalysis_v1_0
+        from saq.modules.file_analysis.officeparser3 import OfficeParserAnalysis3
 
         # gather all the requirements for all the things we want to check
         file_type_analysis = self.wait_for_analysis(_file, FileTypeAnalysis)
@@ -67,7 +67,7 @@ class ExtractedOLEAnalyzer(AnalysisModule):
             return AnalysisExecutionResult.COMPLETED
 
         # is this _file an output of the OfficeParserAnalysis?
-        if any([isinstance(a, OfficeParserAnalysis_v1_0) for a in self.get_root().iterate_all_references(_file)]):
+        if any([isinstance(a, OfficeParserAnalysis3) for a in self.get_root().iterate_all_references(_file)]):
             analysis = self.create_analysis(_file)
             assert isinstance(analysis, ExtractedOLEAnalysis)
 

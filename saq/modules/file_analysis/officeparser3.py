@@ -11,7 +11,7 @@ from saq.observables.file import FileObservable
 from saq.util.filesystem import get_local_file_path
 
 
-class OfficeParserAnalysis_v1_0(Analysis):
+class OfficeParserAnalysis3(Analysis):
     """Does this OLE file have macros or olenative streams?"""
 
     def __init__(self, *args, **kwargs):
@@ -35,9 +35,9 @@ class OfficeParserAnalysis_v1_0(Analysis):
         if not self.extracted_files:
             return None
 
-        return "OfficeParser Analysis ({} macro files)".format(len(self.extracted_files))
+        return "OfficeParser3 Analysis ({} macro files)".format(len(self.extracted_files))
 
-class OfficeParserAnalyzer_v1_0(AnalysisModule):
+class OfficeParserAnalyzer3(AnalysisModule):
     def verify_environment(self):
         self.verify_config_exists('officeparser_path')
         self.verify_path_exists(self.config['officeparser_path'])
@@ -57,7 +57,7 @@ class OfficeParserAnalyzer_v1_0(AnalysisModule):
 
     @property
     def generated_analysis_type(self):
-        return OfficeParserAnalysis_v1_0
+        return OfficeParserAnalysis3
 
     @property
     def valid_observable_types(self):
@@ -104,7 +104,6 @@ class OfficeParserAnalyzer_v1_0(AnalysisModule):
 
         # lol look at all these options
         p = Popen([
-            'python2.7',
             self.officeparser_path,
             '-l', 'DEBUG',
             '--print-header',
@@ -147,7 +146,7 @@ class OfficeParserAnalyzer_v1_0(AnalysisModule):
             return AnalysisExecutionResult.COMPLETED
 
         analysis = self.create_analysis(_file)
-        assert isinstance(analysis, OfficeParserAnalysis_v1_0)
+        assert isinstance(analysis, OfficeParserAnalysis3)
 
         with open(manifest_path, 'rb') as fp:
             while True:

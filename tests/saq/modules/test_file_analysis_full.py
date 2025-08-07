@@ -831,7 +831,6 @@ def test_file_analysis_005_office_file_archiver_000_archive(root_analysis, tmpdi
     # but it should also be a duplicate so the name should have the number prefix
     assert os.path.basename(analysis.details).startswith('000000_')
 
-@pytest.mark.skip("skip this until I get officeparser running in python3")
 @pytest.mark.integration
 def test_file_analysis_006_extracted_ole_000_js(root_analysis):
     if not os.path.exists('test_data/docx/js_ole_obj.docx.e'):
@@ -848,11 +847,12 @@ def test_file_analysis_006_extracted_ole_000_js(root_analysis):
     engine = Engine()
     engine.configuration_manager.enable_module('analysis_module_archive', 'test_groups')
     engine.configuration_manager.enable_module('analysis_module_extracted_ole_analyzer', 'test_groups')
-    engine.configuration_manager.enable_module('analysis_module_officeparser_v1_0', 'test_groups')
+    engine.configuration_manager.enable_module('analysis_module_officeparser3', 'test_groups')
     engine.configuration_manager.enable_module('analysis_module_file_type', 'test_groups')
     engine.start_single_threaded(execution_mode=EngineExecutionMode.UNTIL_COMPLETE)
 
-    root_analysis = load_root(root_analysis.storage_dir)
+    alert = load_alert(root_analysis.uuid)
+    root_analysis = alert.root_analysis
     _file = root_analysis.get_observable(_file.id)
     assert _file
     assert any([d for d in root_analysis.all_detection_points if 'compiles as JavaScript' in d.description])
@@ -961,11 +961,10 @@ def test_mhtml_analysis(root_analysis):
     assert len(analysis.details) == 1
     assert len(analysis.get_observables_by_type(F_FILE)) == 1
 
-@pytest.mark.skip("broken until I fixed officeparser")
 @pytest.mark.system
 def test_officeparser_macro_extraction(root_analysis):
 
-    get_config()['analysis_module_officeparser_v1_0']['merge_macros'] = 'no'
+    get_config()['analysis_module_officeparser3']['merge_macros'] = 'no'
 
     root_analysis.analysis_mode = "test_groups"
     encrypted_path = 'test_data/doc/DOC_PO_10142020EX.doc.e'
@@ -979,7 +978,7 @@ def test_officeparser_macro_extraction(root_analysis):
 
     engine = Engine()
     engine.configuration_manager.enable_module('analysis_module_archive', 'test_groups')
-    engine.configuration_manager.enable_module('analysis_module_officeparser_v1_0', 'test_groups')
+    engine.configuration_manager.enable_module('analysis_module_officeparser3', 'test_groups')
     engine.configuration_manager.enable_module('analysis_module_file_type', 'test_groups')
     engine.start_single_threaded(execution_mode=EngineExecutionMode.UNTIL_COMPLETE)
 
@@ -991,11 +990,10 @@ def test_officeparser_macro_extraction(root_analysis):
     for macro_name in [ 'D6imzn9bmimax3kt20.bas', 'Vufp3qemgme18z3.cls', 'Yan8boy3v12dg.frm' ]:
         assert root_analysis.find_observable(lambda o: o.type == F_FILE and os.path.basename(o.file_name) == macro_name)
 
-@pytest.mark.skip("broken until I fixed officeparser")
 @pytest.mark.integration
 def test_officeparser_macro_extraction_merged(root_analysis):
 
-    get_config()['analysis_module_officeparser_v1_0']['merge_macros'] = 'yes'
+    get_config()['analysis_module_officeparser3']['merge_macros'] = 'yes'
 
     root_analysis.analysis_mode = "test_groups"
     encrypted_path = 'test_data/doc/DOC_PO_10142020EX.doc.e'
@@ -1009,7 +1007,7 @@ def test_officeparser_macro_extraction_merged(root_analysis):
 
     engine = Engine()
     engine.configuration_manager.enable_module('analysis_module_archive', 'test_groups')
-    engine.configuration_manager.enable_module('analysis_module_officeparser_v1_0', 'test_groups')
+    engine.configuration_manager.enable_module('analysis_module_officeparser3', 'test_groups')
     engine.configuration_manager.enable_module('analysis_module_file_type', 'test_groups')
     engine.start_single_threaded(execution_mode=EngineExecutionMode.UNTIL_COMPLETE)
 

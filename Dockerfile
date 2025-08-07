@@ -88,7 +88,6 @@ RUN apt-get update && \
         net-tools \
         nginx \
         nmap \
-        node-esprima \
         openjdk-17-jre \
         p7zip-full \
         p7zip-rar \
@@ -139,10 +138,11 @@ RUN sed -i '/en_US.UTF-8 UTF-8/ s/^# //' /etc/locale.gen && \
     rmdir /opt/signatures && \
     ln -s /opt/ace/etc/yara /opt/signatures
 
-# install Node.js and deobfuscator
+# install nodejs, deobfuscator, and esprima
 RUN curl -fsSLk https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     npm install --global deobfuscator && \
+    npm install --global esprima && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -156,7 +156,8 @@ RUN python3 -m virtualenv --python=python3 /venv && \
     pip config set global.cert /etc/ssl/certs/ca-certificates.crt && \
     pip install --no-cache-dir setuptools pycryptodome && \
     pip install --no-cache-dir -r /venv/python-requirements.txt && \
-    pip install --no-cache-dir yara-python git+https://github.com/unixfreak0037/yara_scanner_v2.git
+    pip install --no-cache-dir git+https://github.com/unixfreak0037/yara_scanner_v2.git && \
+    pip install --no-cache-dir git+https://github.com/unixfreak0037/officeparser3.git
 
 # configure bash environment
 RUN echo 'source /venv/bin/activate' >> /home/ace/.bashrc && \
