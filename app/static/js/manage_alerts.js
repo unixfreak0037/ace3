@@ -135,18 +135,31 @@ $(document).ready(function() {
         }
         disposition = $("input[name='disposition']:checked").val();
         comment = $("textarea[name='comment']").val();
-        $.ajax({
-            type: 'POST',
-            url: 'set_disposition',
-            contentType: "application/x-www-form-urlencoded",
-            data: { "alert_uuids": all_alert_uuids.join(","), "disposition": disposition, "disposition_comment": comment },
-            success: function(data, textStatus, jqXHR) {
+        (function() {
+            const params = new URLSearchParams({
+                alert_uuids: all_alert_uuids.join(','),
+                disposition: disposition,
+                disposition_comment: comment
+            });
+            fetch('set_disposition', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                body: params,
+                credentials: 'same-origin'
+            })
+            .then(function(resp) {
+                if (!resp.ok) {
+                    return resp.text().then(function(t){ throw new Error(t || resp.statusText); });
+                }
+                return resp.text();
+            })
+            .then(function(){
                 show_remediation_targets(get_all_checked_alerts());
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                alert("Failed to set disposition: " + errorThrown);
-            }
-        });
+            })
+            .catch(function(err){
+                alert('Failed to set disposition: ' + err.message);
+            });
+        })();
     });
 
     $("#btn-realHours").click(function(e) {
@@ -252,19 +265,23 @@ $(document).ready(function() {
             return;
         }
 
-        $.ajax({
-            dataType: "html",
-            method: "POST",
-            url: 'set_owner',
-            traditional: true,
-            data: { alert_uuids: all_alert_uuids },
-            success: function(data, textStatus, jqXHR) {
-                window.location.replace("/ace/manage")
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                alert(jqXHR.responseText);
-            }
-        });
+        (function() {
+            const params = new URLSearchParams();
+            all_alert_uuids.forEach(function(uuid){ params.append('alert_uuids', uuid); });
+            fetch('set_owner', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                body: params,
+                credentials: 'same-origin'
+            })
+            .then(function(resp){
+                if (!resp.ok) { return resp.text().then(function(t){ throw new Error(t || resp.statusText); }); }
+                window.location.replace('/ace/manage');
+            })
+            .catch(function(err){
+                alert(err.message);
+            });
+        })();
     });
 
     $("#btn-assign-ownership").click(function(e) {
@@ -315,63 +332,61 @@ function tag_link_clicked(tag_id) {
 
 // reset all filters
 function reset_filters() {
-    $.ajax({
-        dataType: "html",
-        url: 'reset_filters',
-        data: { },
-        success: function(data, textStatus, jqXHR) {
-            window.location.replace("/ace/manage")
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+    (function() {
+        fetch('reset_filters', { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            window.location.replace('/ace/manage');
+        })
+        .catch(function(err){
+            alert('DOH: ' + err.message);
+        });
+    })();
 }
 
 // special filtering capabilities per Mandy's request
 
 function set_special_filter_24_hours() {
-    $.ajax({
-        dataType: "html",
-        url: 'reset_filters_special',
-        data: { "hours": 24 },
-        success: function(data, textStatus, jqXHR) {
-            window.location.replace("/ace/manage")
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ hours: 24 });
+        fetch('reset_filters_special?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            window.location.replace('/ace/manage');
+        })
+        .catch(function(err){
+            alert('DOH: ' + err.message);
+        });
+    })();
 }
 
 function set_special_filter_7_days() {
-    $.ajax({
-        dataType: "html",
-        url: 'reset_filters_special',
-        data: { "hours": 7 * 24 },
-        success: function(data, textStatus, jqXHR) {
-            window.location.replace("/ace/manage")
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ hours: 7 * 24 });
+        fetch('reset_filters_special?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            window.location.replace('/ace/manage');
+        })
+        .catch(function(err){
+            alert('DOH: ' + err.message);
+        });
+    })();
 }
 
 // adds a filter
 function add_filter(name, values) {
-    $.ajax({
-        dataType: "html",
-        url: 'add_filter',
-        traditional: true,
-        data: { filter: JSON.stringify({"name":name, "values":values}) },
-        success: function(data, textStatus, jqXHR) {
-            window.location.replace("/ace/manage");
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ filter: JSON.stringify({ name: name, values: values }) });
+        fetch('add_filter?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            window.location.replace('/ace/manage');
+        })
+        .catch(function(err){
+            alert('DOH: ' + err.message);
+        });
+    })();
 }
 
 function compute_filter_settings() {
@@ -421,80 +436,79 @@ function compute_filter_settings() {
 // adds selected filter from filter modal
 function apply_filter() {
     filter_settings = compute_filter_settings();
-    $.ajax({
-        dataType: "html",
-        url: 'set_filters',
-        traditional: true,
-        data: { filters: JSON.stringify(filter_settings) },
-        success: function(data, textStatus, jqXHR) {
-            window.location.replace("/ace/manage");
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ filters: JSON.stringify(filter_settings) });
+        fetch('set_filters?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            window.location.replace('/ace/manage');
+        })
+        .catch(function(err){
+            alert('DOH: ' + err.message);
+        });
+    })();
 
     return false; // prevents form from submitting
 }
 
 // removes a filter
 function remove_filter(name, index) {
-    $.ajax({
-        dataType: "html",
-        url: 'remove_filter',
-        data: { name: name, index: index },
-        success: function(data, textStatus, jqXHR) {
-            window.location.replace("/ace/manage")
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ name: name, index: index });
+        fetch('remove_filter?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            window.location.replace('/ace/manage');
+        })
+        .catch(function(err){
+            alert('DOH: ' + err.message);
+        });
+    })();
 }
 
 // removes all filters of type name
 function remove_filter_category(name) {
-    $.ajax({
-        dataType: "html",
-        url: 'remove_filter_category',
-        data: { name: name },
-        success: function(data, textStatus, jqXHR) {
-            window.location.replace("/ace/manage")
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ name: name });
+        fetch('remove_filter_category?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            window.location.replace('/ace/manage');
+        })
+        .catch(function(err){
+            alert('DOH: ' + err.message);
+        });
+    })();
 }
 
 // sets the sort order
 function set_sort_filter(name) {
-    $.ajax({
-        dataType: "html",
-        url: 'set_sort_filter',
-        data: { name: name },
-        success: function(data, textStatus, jqXHR) {
-            window.location.replace("/ace/manage")
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ name: name });
+        fetch('set_sort_filter?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            window.location.replace('/ace/manage');
+        })
+        .catch(function(err){
+            alert('DOH: ' + err.message);
+        });
+    })();
 }
 
 // sets page offset
 function set_page_offset(offset) {
-    $.ajax({
-        dataType: "html",
-        url: 'set_page_offset',
-        data: { offset: offset },
-        success: function(data, textStatus, jqXHR) {
-            window.location.replace("/ace/manage")
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ offset: offset });
+        fetch('set_page_offset?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            window.location.replace('/ace/manage');
+        })
+        .catch(function(err){
+            alert('DOH: ' + err.message);
+        });
+    })();
 }
 
 // sets page size
@@ -517,17 +531,17 @@ function set_page_size(current_size) {
         return;
     }
 
-    $.ajax({
-        dataType: "html",
-        url: 'set_page_size',
-        data: { size: limit },
-        success: function(data, textStatus, jqXHR) {
-            window.location.replace("/ace/manage")
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ size: limit });
+        fetch('set_page_size?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            window.location.replace('/ace/manage');
+        })
+        .catch(function(err){
+            alert('DOH: ' + err.message);
+        });
+    })();
 }
 
 // hides/shows correct filter value input based on filter name selection
@@ -561,18 +575,20 @@ function toggle_options(input, options_id) {
 }
 
 function new_filter_option() {
-  $.ajax({
-    dataType: "html",
-    url: 'new_filter_option',
-    data: {},
-    success: function(data, textStatus, jqXHR) {
+  (function() {
+    fetch('new_filter_option', { credentials: 'same-origin' })
+    .then(function(resp){
+      if (!resp.ok) { throw new Error(resp.statusText); }
+      return resp.text();
+    })
+    .then(function(data){
       $('#filter_modal_body').append(data);
       setup_daterange_pickers()
-    },
-    error: function(jqXHR, textStatus, errorThrown) {
-      alert("DOH: " + textStatus);
-    }
-  });
+    })
+    .catch(function(err){
+      alert('DOH: ' + err.message);
+    });
+  })();
 }
 
 // gets called when the user clicks on the right triangle button next to each alert
@@ -585,17 +601,20 @@ function load_alert_observables(alert_uuid) {
         return;
     }
 
-    $.ajax({
-        dataType: "html",
-        url: 'observables',
-        data: { alert_uuid: alert_uuid },
-        success: function(data, textStatus, jqXHR) {
+    (function() {
+        const params = new URLSearchParams({ alert_uuid: alert_uuid });
+        fetch('observables?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            return resp.text();
+        })
+        .then(function(data){
             $('#alert_row_' + alert_uuid).after('<tr id="alert_observables_' + alert_uuid + '"><td colspan="6">' + data);
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+        })
+        .catch(function(err){
+            alert('DOH: ' + err.message);
+        });
+    })();
     
 }
 

@@ -1,19 +1,23 @@
 function remediation_targets(method, body, modal_id) {
-    $.ajax({
-        type: method,
-        url: 'remediation_targets',
-        dataType: "html",
-        contentType: "application/json",
-        data: JSON.stringify(body),
-        processData: false,
-        success: function(data, textStatus, jqXHR) {
-            $(modal_id).html(data);
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
+    (function() {
+        fetch('remediation_targets', {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            credentials: 'same-origin'
+        })
+        .then(function(resp){
+            if (!resp.ok) { return resp.text().then(function(t){ throw new Error(t || resp.statusText); }); }
+            return resp.text();
+        })
+        .then(function(html){
+            $(modal_id).html(html);
+        })
+        .catch(function(err){
             $(modal_id).modal('hide');
-            alert("Failed to " + method + " remediation targets: " + errorThrown);
-        }
-    });
+            alert('Failed to ' + method + ' remediation targets: ' + err.message);
+        });
+    })();
 }
 
 function get_remediation_targets() {

@@ -44,23 +44,28 @@ function export_events_to_csv() {
     // and downloads .csv from response
     let checked_events = get_all_checked_events();
 
-    $.ajax({
-        dataType: "html",
-        url: 'export_events_to_csv',
-        data: { checked_events: checked_events },
-        success: function(data) {
-            let blob = new Blob([data], {type: 'text/csv'});
+    (function() {
+        const params = new URLSearchParams();
+        // mimic jQuery default array serialization: checked_events[]
+        checked_events.forEach(function(id){ params.append('checked_events[]', id); });
+        fetch('export_events_to_csv?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            return resp.text();
+        })
+        .then(function(text){
+            let blob = new Blob([text], { type: 'text/csv' });
             let link = document.createElement('a');
             link.href = window.URL.createObjectURL(blob);
             link.download = 'export.csv';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("ERROR: " + textStatus + " - " + errorThrown);
-        }
-    });
+        })
+        .catch(function(err){
+            alert('ERROR: ' + err.message);
+        });
+    })();
 }
 
 function get_all_checked_observables() {
@@ -125,19 +130,16 @@ function set_observable_detection_status() {
 
     var data_obj = {enabled: checked, disabled: unchecked};
 
-    $.ajax({
-        dataType: "html",
-        contentType: "application/json",
-        url: "set_observables_detection_status",
-        data: JSON.stringify(data_obj),
-        method: "POST",
-        success: function(data, textStatus, jqXHR) {
-
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus + " - " + errorThrown);
-        }
-    });
+    (function() {
+        fetch('set_observables_detection_status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data_obj),
+            credentials: 'same-origin'
+        })
+        .then(function(resp){ if (!resp.ok) { throw new Error(resp.statusText); } })
+        .catch(function(err){ alert('DOH: ' + err.message); });
+    })();
 }
 
 function close_event() {
@@ -147,17 +149,12 @@ function close_event() {
 
     set_observable_detection_status();
 
-    $.ajax({
-        dataType: "html",
-        url: "close_event",
-        method: "POST",
-        success: function(data, textStatus, jqXHR) {
-            alert("Event is closed. Uploading data to TIP in the background.");
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus + " - " + errorThrown);
-        }
-    });
+    (function() {
+        fetch('close_event', { method: 'POST', credentials: 'same-origin' })
+        .then(function(resp){ if (!resp.ok) { throw new Error(resp.statusText); } })
+        .then(function(){ alert('Event is closed. Uploading data to TIP in the background.'); })
+        .catch(function(err){ alert('DOH: ' + err.message); });
+    })();
 }
 
 function update_event_status_message(message) {
@@ -165,33 +162,33 @@ function update_event_status_message(message) {
 }
 
 function add_indicators_to_event_in_tip(event_id) {
-    $.ajax({
-        dataType: "html",
-        url: 'add_indicators_to_event_in_tip',
-        data: { event_id: event_id },
-        method: "POST",
-        success: function(data, textStatus, jqXHR) {
-            alert("Uploading data to TIP in the background.");
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus + " - " + errorThrown);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ event_id: event_id });
+        fetch('add_indicators_to_event_in_tip', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: params,
+            credentials: 'same-origin'
+        })
+        .then(function(resp){ if (!resp.ok) { throw new Error(resp.statusText); } })
+        .then(function(){ alert('Uploading data to TIP in the background.'); })
+        .catch(function(err){ alert('DOH: ' + err.message); });
+    })();
 }
 
 function create_event_in_tip(event_id) {
-    $.ajax({
-        dataType: "html",
-        url: 'create_event_in_tip',
-        data: { event_id: event_id },
-        method: "POST",
-        success: function(data, textStatus, jqXHR) {
-            alert("Created event in TIP");
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus + " - " + errorThrown);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ event_id: event_id });
+        fetch('create_event_in_tip', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: params,
+            credentials: 'same-origin'
+        })
+        .then(function(resp){ if (!resp.ok) { throw new Error(resp.statusText); } })
+        .then(function(){ alert('Created event in TIP'); })
+        .catch(function(err){ alert('DOH: ' + err.message); });
+    })();
 }
 
 function load_event_alerts(event_id) {
@@ -202,17 +199,13 @@ function load_event_alerts(event_id) {
         return;
     }
 
-    $.ajax({
-        dataType: "html",
-        url: 'manage_event_summary',
-        data: { event_id: event_id },
-        success: function(data, textStatus, jqXHR) {
-            $('#event_row_' + event_id).after(data);
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus + " - " + errorThrown);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ event_id: event_id });
+        fetch('manage_event_summary?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){ if (!resp.ok) { throw new Error(resp.statusText); } return resp.text(); })
+        .then(function(html){ $('#event_row_' + event_id).after(html); })
+        .catch(function(err){ alert('DOH: ' + err.message); });
+    })();
 }
 
 function get_all_checked_event_mappings() {
@@ -306,22 +299,29 @@ $(document).on('click', '#btn-send-event-to-send', function() {
     }
     
     // send a request to the API
-    $.ajax({
-      dataType: "html",
-      contentType: "application/json",
-      url: "send_event_to",
-      method: "POST",
-      data: JSON.stringify(data),
-      success: function(data, textStatus, jqXHR) {
-          alert("Sending event to " + selectedHost + " at " + jqXHR.responseText);
-      },
-      error: function(jqXHR, textStatus, errorThrown) {
-          alert("DOH: " + jqXHR.responseText);
-      },
-      complete: function(jqXHR, status_code) {
+    (function() {
+      fetch('send_event_to', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin'
+      })
+      .then(function(resp){
+        return resp.text().then(function(text){
+          if (!resp.ok) { throw new Error(text || resp.statusText); }
+          return text;
+        });
+      })
+      .then(function(text){
+        alert('Sending event to ' + selectedHost + ' at ' + text);
+      })
+      .catch(function(err){
+        alert('DOH: ' + err.message);
+      })
+      .finally(function(){
         $('#send-event-to-modal').modal('hide');
-      }
-    });
+      });
+    })();
   });
 
 $(document).ready(function() {

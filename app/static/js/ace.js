@@ -53,17 +53,13 @@ function toggleNewCampaignInput() {
 
 function new_malware_option() {
   var index = new Date().valueOf()
-  $.ajax({
-    dataType: "html",
-    url: 'new_malware_option',
-    data: {index: index},
-    success: function(data, textStatus, jqXHR) {
-      $('#new_event_dialog').append(data);
-    },
-    error: function(jqXHR, textStatus, errorThrown) {
-      alert("DOH: " + textStatus);
-    }
-  });
+  (function() {
+    const params = new URLSearchParams({ index: index });
+    fetch('new_malware_option?' + params.toString(), { credentials: 'same-origin' })
+      .then(function(resp){ if (!resp.ok) { throw new Error(resp.statusText); } return resp.text(); })
+      .then(function(html){ $('#new_event_dialog').append(html); })
+      .catch(function(err){ alert('DOH: ' + err.message); });
+  })();
 }
 
 // This function is called from the "Send to.." modal dialog
@@ -73,21 +69,38 @@ $(document).on('click', '#btn-send-to-send', function() {
   sendToDatastore.formData["hostname"] = selectedHost;
 
   // send a request to the API
-  $.ajax({
-    dataType: "html",
-    url: sendToDatastore.url,
-    method: "POST",
-    data: sendToDatastore.formData,
-    success: function(data, textStatus, jqXHR) {
-        alert("Sending file to " + selectedHost + " at " + jqXHR.responseText);
-    },
-    error: function(jqXHR, textStatus, errorThrown) {
-        alert("DOH: " + jqXHR.responseText);
-    },
-    complete: function(jqXHR, status_code) {
-      $('#send-to-modal').modal('hide');
-    }
-  });
+  (function() {
+      var params = new URLSearchParams();
+      Object.keys(sendToDatastore.formData || {}).forEach(function(key){
+        var value = sendToDatastore.formData[key];
+        if (Array.isArray(value)) {
+          value.forEach(function(v){ params.append(key + '[]', v); });
+        } else if (value !== undefined && value !== null) {
+          params.append(key, value);
+        }
+      });
+      fetch(sendToDatastore.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: params,
+        credentials: 'same-origin'
+      })
+      .then(function(resp){
+        return resp.text().then(function(text){
+          if (!resp.ok) { throw new Error(text || resp.statusText); }
+          return text;
+        });
+      })
+      .then(function(text){
+        alert('Sending file to ' + selectedHost + ' at ' + text);
+      })
+      .catch(function(err){
+        alert('DOH: ' + err.message);
+      })
+      .finally(function(){
+        $('#send-to-modal').modal('hide');
+      });
+  })();
 });
 
 // This function is called from the "Send alert to.." modal dialog
@@ -101,22 +114,29 @@ $(document).on('click', '#btn-send-alert-to-send', function() {
   }
   
   // send a request to the API
-  $.ajax({
-    dataType: "html",
-    contentType: "application/json",
-    url: "send_alert_to",
-    method: "POST",
-    data: JSON.stringify(data),
-    success: function(data, textStatus, jqXHR) {
-        alert("Sending alert to " + selectedHost + " at " + jqXHR.responseText);
-    },
-    error: function(jqXHR, textStatus, errorThrown) {
-        alert("DOH: " + jqXHR.responseText);
-    },
-    complete: function(jqXHR, status_code) {
+  (function() {
+    fetch('send_alert_to', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'same-origin'
+    })
+    .then(function(resp){
+      return resp.text().then(function(text){
+        if (!resp.ok) { throw new Error(text || resp.statusText); }
+        return text;
+      });
+    })
+    .then(function(text){
+      alert('Sending alert to ' + selectedHost + ' at ' + text);
+    })
+    .catch(function(err){
+      alert('DOH: ' + err.message);
+    })
+    .finally(function(){
       $('#send-alert-to-modal').modal('hide');
-    }
-  });
+    });
+  })();
 });
 
 function remove_malware_option(index) {
@@ -172,17 +192,13 @@ function toggle_checkboxes(cb, name) {
 // maek call to /alert_uuid/event_name_candidate to grab the correct event_name for selected alert
 // then on succsessful return, fill in the event name field in the modal
 function grab_and_fill_event_name(alert_uuid) {
-    $.ajax({
-        dataType: "html",
-        url: `${alert_uuid}/event_name_candidate`,
-        data: { alert_uuid: alert_uuid },
-        success: function(data, textStatus, jqXHR) {
-           document.getElementById('event_name').value = data;
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ alert_uuid: alert_uuid });
+        fetch(`${alert_uuid}/event_name_candidate?` + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){ if (!resp.ok) { throw new Error(resp.statusText); } return resp.text(); })
+        .then(function(text){ document.getElementById('event_name').value = text; })
+        .catch(function(err){ alert('DOH: ' + err.message); });
+    })();
 }
 
 // selects the best choice of event name from a list of alert uuids selected on /manage view
@@ -248,17 +264,17 @@ function autofill_event_name() {
 function loadMoreClosedEvents() {
   var event_tab = document.getElementById("closed-events");
   var count = event_tab.childElementCount
-  $.ajax({
-    dataType: "html",
-    url: 'load_more_events',
-    data: { count: count-1 },
-    success: function(data, textStatus, jqXHR) {
-      $('#closed-events').append(data);
-      var load_button = document.getElementById("load-more-events-btn");
-      load_button.parentNode.removeChild(load_button);
-    },
-    error: function(jqXHR, textStatus, errorThrown) {
-      alert("DOH: " + textStatus);
-    }
-  });
+  (function() {
+    const params = new URLSearchParams({ count: count - 1 });
+    fetch('load_more_events?' + params.toString(), { credentials: 'same-origin' })
+      .then(function(resp){ if (!resp.ok) { throw new Error(resp.statusText); } return resp.text(); })
+      .then(function(html){
+        $('#closed-events').append(html);
+        var load_button = document.getElementById('load-more-events-btn');
+        if (load_button && load_button.parentNode) {
+          load_button.parentNode.removeChild(load_button);
+        }
+      })
+      .catch(function(err){ alert('DOH: ' + err.message); });
+  })();
 }

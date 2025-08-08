@@ -10,23 +10,30 @@ function check_alert_meta() {
         if (current_alert_uuid == null)
             return;
 
-        $.ajax({
-            type: 'GET',
-            url: 'get_alert_meta',
-            contentType: "application/x-www-form-urlencoded",
-            data: { "direct": current_alert_uuid },
-            success: function(data, textStatus, jqXHR) {
-                if (data["owner_id"] != null && data["owner_id"] != current_alert_owner_id) {
-                    current_alert_owner_id = data["owner_id"];
-                    $("#alert_thief").text(data["owner_name"]);
-                    $("#alert_ownership_changed_modal").modal("show");
-                } else {
-                    //console.log(data);
-                }
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                console.log("failed: " + textStatus + errorThrown);
+        // Modern fetch equivalent of the above $.ajax GET request
+        const params = new URLSearchParams({ direct: current_alert_uuid });
+        fetch(`get_alert_meta?${params.toString()}`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
+            return response.json();
+        })
+        .then(data => {
+            if (data["owner_id"] != null && data["owner_id"] != current_alert_owner_id) {
+                current_alert_owner_id = data["owner_id"];
+                $("#alert_thief").text(data["owner_name"]);
+                $("#alert_ownership_changed_modal").modal("show");
+            } else {
+                //console.log(data);
+            }
+        })
+        .catch(error => {
+            console.log("failed: " + error);
         });
     } catch(error) {
         console.log("unable to check alert meta: " + e);
@@ -112,18 +119,28 @@ $(document).ready(function() {
         // set the disposition of selected alerts
         disposition = $("input[name='disposition']:checked").val();
         comment = $("textarea[name='comment']").val();
-        $.ajax({
-            type: 'POST',
-            url: 'set_disposition',
-            contentType: "application/x-www-form-urlencoded",
-            data: { "alert_uuids": current_alert_uuid, "disposition": disposition, "disposition_comment": comment },
-            success: function(data, textStatus, jqXHR) {
+        (function() {
+            const params = new URLSearchParams({
+                alert_uuids: current_alert_uuid,
+                disposition: disposition,
+                disposition_comment: comment
+            });
+            fetch('set_disposition', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                body: params,
+                credentials: 'same-origin'
+            })
+            .then(function(resp){
+                if (!resp.ok) { return resp.text().then(function(t){ throw new Error(t || resp.statusText); }); }
+            })
+            .then(function(){
                 show_remediation_targets([current_alert_uuid]);
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                alert("Failed to set disposition: " + errorThrown);
-            }
-        });
+            })
+            .catch(function(err){
+                alert('Failed to set disposition: ' + err.message);
+            });
+        })();
     });
 
     //$('#btn-stats').click(function(e) {
@@ -236,11 +253,14 @@ function download_url(url) {
 }
 
 function graph_alert(container) {
-    $.ajax({
-        dataType: "json",
-        url: '/json',
-        data: { alert_uuid: current_alert_uuid },
-        success: function(data, textStatus, jqXHR) {
+    (function() {
+        const params = new URLSearchParams({ alert_uuid: current_alert_uuid });
+        fetch('/json?' + params.toString(), { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+        .then(function(resp){
+            if (!resp.ok) { throw new Error(resp.statusText); }
+            return resp.json();
+        })
+        .then(function(data){
             var nodes = new vis.DataSet(data['nodes']);
             // create an array with edges
             var edges = new vis.DataSet(data['edges']);
@@ -313,11 +333,11 @@ function graph_alert(container) {
             $("#btn-fit-to-window").click(function(e) {
                 network.fit();
             });
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH");
-        }
-    });
+        })
+        .catch(function(){
+            alert('DOH');
+        });
+    })();
 }
 
 function delete_comment(comment_id) {
@@ -336,18 +356,13 @@ function delete_comment(comment_id) {
 
 // sets all filters
 function set_filters(filters) {
-    $.ajax({
-        dataType: "html",
-        url: 'set_filters',
-        traditional: true,
-        data: { filters: JSON.stringify(filters) },
-        success: function(data, textStatus, jqXHR) {
-            window.location = "/ace/manage"
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert("DOH: " + textStatus);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams({ filters: JSON.stringify(filters) });
+        fetch('set_filters?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){ if (!resp.ok) { throw new Error(resp.statusText); } })
+        .then(function(){ window.location = '/ace/manage'; })
+        .catch(function(err){ alert('DOH: ' + err.message); });
+    })();
 }
 
 // This is kind of gross, but it does the job until we have proper searching/filtering routes.
@@ -368,18 +383,16 @@ function filter_events_by_observable_and_status(o_type, o_value, event_status) {
 
 // sets the owner of the alert
 function set_owner(alert_uuid) {
-    $.ajax({
-        dataType: "html",
-        url: 'set_owner',
-        traditional: true,
-        data: { alert_uuids: alert_uuid },
-        success: function(data, textStatus, jqXHR) {
-            window.location.replace(window.location)
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            alert(jqXHR.responseText);
-        }
-    });
+    (function() {
+        const params = new URLSearchParams();
+        params.append('alert_uuids', alert_uuid);
+        fetch('set_owner?' + params.toString(), { credentials: 'same-origin' })
+        .then(function(resp){
+            if (!resp.ok) { return resp.text().then(function(t){ throw new Error(t || resp.statusText); }); }
+            window.location.replace(window.location);
+        })
+        .catch(function(err){ alert(err.message); });
+    })();
 }
 
 // collapses ul that exist under li

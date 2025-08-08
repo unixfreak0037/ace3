@@ -25,25 +25,25 @@ $(document).ready(function() {
 
 function new_alert_observable() {
   var index = new Date().valueOf()
-  $.ajax({
-    dataType: "html",
-    url: 'new_alert_observable',
-    data: {index: index},
-    success: function(data, textStatus, jqXHR) {
+  (function() {
+    const params = new URLSearchParams({ index: index });
+    fetch('new_alert_observable?' + params.toString(), { credentials: 'same-origin' })
+    .then(function(resp){
+      if (!resp.ok) { throw new Error(resp.statusText); }
+      return resp.text();
+    })
+    .then(function(data){
       $('#new_alert_observables').append(data);
       $('input[name="observables_times_' + index + '"]').datetimepicker({
         showSecond: true,
         dateFormat: 'mm-dd-yy',
         timeFormat: 'HH:mm:ss'
       });
-      //let multiselect = $("#observables_directives_multiselect_" + index);
-        //multiselect.multiselect(MULTISELECT_SETTINGS);
-        //multiselect.multiselect('select', 'sandbox');
-    },
-    error: function(jqXHR, textStatus, errorThrown) {
-      alert("DOH: " + textStatus);
-    }
-  });
+    })
+    .catch(function(err){
+      alert('DOH: ' + err.message);
+    });
+  })();
 }
 
 function clear_multiselect(multiselect) {
