@@ -887,11 +887,7 @@ def test_whitelisting(root_analysis, whitelist_item, datadir):
 def test_automated_msoffice_decryption(root_analysis, datadir):
     root_analysis.alert_type = ANALYSIS_TYPE_MAILBOX
     root_analysis.analysis_mode = "test_groups"
-    target_path = root_analysis.create_file_path('encrypted_msoffice.email.rfc822')
-    decrypt(str(datadir / 'emails/encrypted_msoffice.email.rfc822.e'), 
-            target_path,
-            password='ace')
-    file_observable = root_analysis.add_file_observable(target_path)
+    file_observable = root_analysis.add_file_observable(str(datadir / 'emails/encrypted_msoffice.email.rfc822'))
     root_analysis.save()
     root_analysis.schedule()
 
