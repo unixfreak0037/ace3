@@ -116,6 +116,10 @@ def set_encryption_password(password, old_password=None, key=None):
     # now we compute the key to use to encrypt the encryption key using the user-supplied password
     salt = os.urandom(get_config_value_as_int(CONFIG_ENCRYPTION, CONFIG_ENCRYPTION_SALT_SIZE, default=32))
     iterations =  get_config_value_as_int(CONFIG_ENCRYPTION, CONFIG_ENCRYPTION_ITERATIONS, default=600000)
+
+    if iterations < 600000:
+        logging.warning(f"encryption.iterations is less than 600000, this is not recommended for production use. iterations={iterations}")
+
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=64,
