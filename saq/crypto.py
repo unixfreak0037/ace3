@@ -288,6 +288,7 @@ def initialize_encryption(encryption_password_plaintext: Optional[str]=None, pro
                     set_g(G_ENCRYPTION_KEY, get_aes_key(encryption_password_plaintext))
                 except InvalidPasswordError:
                     logging.error("encryption password is wrong")
+                finally:
                     encryption_password_plaintext = None
 
     except Exception as e:
