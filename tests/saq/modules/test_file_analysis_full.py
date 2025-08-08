@@ -1,6 +1,5 @@
 import hashlib
 import os
-import shutil
 import uuid
 import pytest
 
@@ -13,7 +12,7 @@ from saq.database.pool import get_db
 from saq.engine.core import Engine
 from saq.engine.engine_configuration import EngineConfiguration
 from saq.engine.enums import EngineExecutionMode
-from saq.environment import get_base_dir, get_data_dir
+from saq.environment import get_data_dir
 from saq.modules.file_analysis.archive import ArchiveAnalysis
 from saq.modules.file_analysis.html import MHTMLAnalysis
 from saq.modules.file_analysis.is_file_type import is_msi_file, is_ole_file
@@ -158,11 +157,7 @@ def test_file_analysis_001_oletools_000(root_analysis, result_map, datadir):
     for file_name, expected_results in result_map.items():
         root_analysis.analysis_mode = "test_groups"
 
-        encrypted_target_path = str(datadir / f"ole_files/{file_name}.e")
-        target_path = str(datadir / f"{file_name}")
-        decrypt(encrypted_target_path, target_path, password='ace')
-
-        file_observable = root_analysis.add_file_observable(target_path)
+        file_observable = root_analysis.add_file_observable(str(datadir / f"ole_files/{file_name}"))
         root_analysis.save()
         root_analysis.schedule()
 
@@ -211,11 +206,7 @@ def test_file_analysis_002_archive_001_rar(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
 
-    encrypted_target_path = str(datadir / "rar/test.r07.e")
-    target_path = str(datadir / "rar/test.r07")
-    decrypt(encrypted_target_path, target_path, password='ace')
-
-    _file = root_analysis.add_file_observable(target_path)
+    _file = root_analysis.add_file_observable(str(datadir / "rar/test.r07"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -262,15 +253,9 @@ def test_file_analysis_archive_skip_ole(root_analysis):
 
 @pytest.mark.integration
 def test_file_analysis_archive_malicious_msi(root_analysis, datadir):
-    from saq.crypto import decrypt
-
     root_analysis.analysis_mode = "test_groups"
 
-    encrypted_target_path = str(datadir / "msi/84ec41afdc49c2ee8dff9ba07ba5c9a4.e")
-    target_path = str(datadir / "msi/84ec41afdc49c2ee8dff9ba07ba5c9a4")
-    decrypt(encrypted_target_path, target_path, password='ace')
-
-    _file = root_analysis.add_file_observable(target_path)
+    _file = root_analysis.add_file_observable(str(datadir / "msi/84ec41afdc49c2ee8dff9ba07ba5c9a4"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -294,17 +279,12 @@ def test_file_analysis_archive_malicious_msi(root_analysis, datadir):
 
 @pytest.mark.unit
 def test_file_analysis_msi_identification(tmpdir, datadir):
-    from saq.crypto import decrypt
-
-    encrypted_target_path = str(datadir / "msi/84ec41afdc49c2ee8dff9ba07ba5c9a4.e")
-    target_path = str(datadir / "msi/84ec41afdc49c2ee8dff9ba07ba5c9a4")
-    decrypt(encrypted_target_path, target_path, password='ace')
 
     # this should return True since it's technically an OLE file
-    assert is_ole_file(target_path)
+    assert is_ole_file(str(datadir / "msi/84ec41afdc49c2ee8dff9ba07ba5c9a4"))
 
     # this should als return True since it's actually an MSI file
-    assert is_msi_file(target_path)
+    assert is_msi_file(str(datadir / "msi/84ec41afdc49c2ee8dff9ba07ba5c9a4"))
 
 @pytest.mark.integration
 def test_file_analysis_archive_7z_under(root_analysis, datadir):
@@ -334,11 +314,7 @@ def test_file_analysis_002_archive_002_ace(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
 
-    encrypted_target_path = str(datadir / "ace/dhl_report.ace.e")
-    target_path = str(datadir / "ace/dhl_report.ace")
-    decrypt(encrypted_target_path, target_path, password='ace')
-
-    _file = root_analysis.add_file_observable(target_path)
+    _file = root_analysis.add_file_observable(str(datadir / "ace/dhl_report.ace"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -360,12 +336,8 @@ def test_file_analysis_002_archive_002_ace(root_analysis, datadir):
 @pytest.mark.integration
 def test_file_analysis_002_archive_003_jar(root_analysis, datadir):
 
-    encrypted_target_path = str(datadir / "jar/test.jar.e")
-    target_path = str(datadir / "jar/test.jar")
-    decrypt(encrypted_target_path, target_path, password='ace')
-
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable(target_path)
+    _file = root_analysis.add_file_observable(str(datadir / "jar/test.jar"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -395,11 +367,7 @@ def test_file_analysis_002_archive_malicious_jar(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
 
-    encrypted_target_path = str(datadir / "jar/malicious.jar.e")
-    target_path = str(datadir / "jar/malicious.jar")
-    decrypt(encrypted_target_path, target_path, password='ace')
-
-    _file = root_analysis.add_file_observable(target_path)
+    _file = root_analysis.add_file_observable(str(datadir / "jar/malicious.jar"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -430,12 +398,8 @@ def test_file_analysis_002_archive_malicious_jar_limit(root_analysis, datadir):
     # limit java decompile to 1 file
     get_config()['analysis_module_archive']['java_class_decompile_limit'] = '1'
 
-    encrypted_target_path = str(datadir / "jar/malicious.jar.e")
-    target_path = str(datadir / "jar/malicious.jar")
-    decrypt(encrypted_target_path, target_path, password='ace')
-
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable(target_path)
+    _file = root_analysis.add_file_observable(str(datadir / "jar/malicious.jar"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -719,10 +683,7 @@ def test_file_analysis_004_yara_008_for_detection(yss_server, root_analysis, dat
 def test_file_analysis_005_pcode_000_extract_pcode(root_analysis, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    encrypted_target_path = str(datadir / "ole_files/word2013_macro_stripped.doc.e")
-    target_path = str(datadir / "ole_files/word2013_macro_stripped.doc")
-    decrypt(encrypted_target_path, target_path, password='ace')
-    _file = root_analysis.add_file_observable(target_path)
+    _file = root_analysis.add_file_observable(str(datadir / "ole_files/word2013_macro_stripped.doc"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -750,10 +711,7 @@ def test_file_analysis_005_pcode_000_extract_pcode(root_analysis, datadir):
 def test_file_analysis_005_office_file_archiver_000_archive(root_analysis, tmpdir, datadir):
 
     root_analysis.analysis_mode = "test_groups"
-    encrypted_target_path = str(datadir / "ole_files/Paid Invoice.doc.e")
-    target_path = str(datadir / "ole_files/Paid Invoice.doc")
-    decrypt(encrypted_target_path, target_path, password='ace')
-    _file = root_analysis.add_file_observable(target_path)
+    _file = root_analysis.add_file_observable(str(datadir / "ole_files/Paid Invoice.doc"))
     sha256 = _file.sha256_hash
     root_analysis.save()
     root_analysis.schedule()
@@ -811,10 +769,7 @@ def test_file_analysis_005_office_file_archiver_000_archive(root_analysis, tmpdi
 @pytest.mark.integration
 def test_file_analysis_006_extracted_ole_000_js(root_analysis, datadir):
     root_analysis.analysis_mode = "test_groups"
-    encrypted_target_path = str(datadir / "docx/js_ole_obj.docx.e")
-    target_path = str(datadir / "docx/js_ole_obj.docx")
-    decrypt(encrypted_target_path, target_path, password='ace')
-    _file = root_analysis.add_file_observable(target_path)
+    _file = root_analysis.add_file_observable(str(datadir / "docx/js_ole_obj.docx"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -834,12 +789,8 @@ def test_file_analysis_006_extracted_ole_000_js(root_analysis, datadir):
 @pytest.mark.integration
 def test_open_office_extraction(root_analysis, datadir):
 
-    encrypted_target_path = str(datadir / "openoffice/demo.odt.e")
-    target_path = str(datadir / "openoffice/demo.odt")
-    decrypt(encrypted_target_path, target_path, password='ace')
-
     root_analysis.analysis_mode = "test_groups"
-    _file = root_analysis.add_file_observable(target_path)
+    _file = root_analysis.add_file_observable(str(datadir / "openoffice/demo.odt"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -941,10 +892,7 @@ def test_officeparser_macro_extraction(root_analysis, datadir):
     get_config()['analysis_module_officeparser3']['merge_macros'] = 'no'
 
     root_analysis.analysis_mode = "test_groups"
-    encrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc.e")
-    decrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc")
-    decrypt(encrypted_path, decrypted_path, password='ace')
-    _file = root_analysis.add_file_observable(decrypted_path)
+    _file = root_analysis.add_file_observable(str(datadir / "doc/DOC_PO_10142020EX.doc"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -968,11 +916,7 @@ def test_officeparser_macro_extraction_merged(root_analysis, datadir):
     get_config()['analysis_module_officeparser3']['merge_macros'] = 'yes'
 
     root_analysis.analysis_mode = "test_groups"
-    encrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc.e")
-    decrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc")
-    decrypt(encrypted_path, decrypted_path, password='ace')
-
-    _file = root_analysis.add_file_observable(decrypted_path)
+    _file = root_analysis.add_file_observable(str(datadir / "doc/DOC_PO_10142020EX.doc"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -998,11 +942,7 @@ def test_olevba_macro_extraction(root_analysis, datadir):
     get_config()['analysis_module_olevba_v1_2']['merge_macros'] = 'no'
 
     root_analysis.analysis_mode = "test_groups"
-    encrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc.e")
-    decrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc")
-    decrypt(encrypted_path, decrypted_path, password='ace')
-
-    _file = root_analysis.add_file_observable(decrypted_path)
+    _file = root_analysis.add_file_observable(str(datadir / "doc/DOC_PO_10142020EX.doc"))
     root_analysis.save()
     root_analysis.schedule()
 
@@ -1027,11 +967,7 @@ def test_olevba_macro_extraction_merged(root_analysis, datadir):
     get_config()['analysis_module_olevba_v1_2']['merge_macros'] = 'yes'
 
     root_analysis.analysis_mode = "test_groups"
-    encrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc.e")
-    decrypted_path = str(datadir / "doc/DOC_PO_10142020EX.doc")
-    decrypt(encrypted_path, decrypted_path, password='ace')
-
-    _file = root_analysis.add_file_observable(decrypted_path)
+    _file = root_analysis.add_file_observable(str(datadir / "doc/DOC_PO_10142020EX.doc"))
     root_analysis.save()
     root_analysis.schedule()
 

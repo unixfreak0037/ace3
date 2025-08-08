@@ -30,13 +30,6 @@ def test_invalid_password():
     with pytest.raises(InvalidPasswordError):
         aes_key = get_aes_key('invalid_password')
 
-@pytest.mark.skip(reason="key now autoset")
-@pytest.mark.integration
-def test_password_not_set():
-    assert not encryption_key_set()
-    with pytest.raises(PasswordNotSetError):
-        aes_key = get_aes_key('test')
-
 @pytest.mark.integration
 def test_encrypt_chunk():
     chunk = b'1234567890'

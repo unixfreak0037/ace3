@@ -539,10 +539,7 @@ def test_ocr_analyzer(datadir, monkeypatch, test_filename, expected_strings, exp
 @pytest.mark.unit
 def test_decompile_java_class_file(tmp_path, datadir):
     from saq.modules.file_analysis.archive import decompile_java_class_file
-    class_file = f'{tmp_path}/VxUGJsAplRNavewkjKujp.class'
-    from saq.crypto import decrypt
-    encrypted_class_file = str(datadir / 'jar/VxUGJsAplRNavewkjKujp.class.e')
-    decrypt(encrypted_class_file, class_file, password='ace')
+    class_file = str(datadir / 'jar/VxUGJsAplRNavewkjKujp.class')
     assert os.path.exists(class_file)
 
     output_directory = tmp_path / 'output'
