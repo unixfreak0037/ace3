@@ -2,11 +2,13 @@
 # semaphores defined in the configuration file
 import logging
 from threading import RLock
+from typing import Optional
 from saq.configuration.config import get_config, get_config_value_as_int
 from saq.constants import CONFIG_NETWORK_SEMAPHORE
 from saq.network_semaphore.logging import LoggingSemaphore
 
 
+fallback_semaphores_initialized = False
 defined_fallback_semaphores = {} # key = semaphore name, value = LoggingSemaphore(count)
 # semaphores defined during runtime (these are deleted after release to 0)
 undefined_fallback_semaphores = {} # key = semaphore name, value = LoggingSemaphore(count)
@@ -15,11 +17,18 @@ undefined_fallback_semaphores_lock = RLock()
 def get_defined_fallback_semaphores() -> dict[str, LoggingSemaphore]:
     return defined_fallback_semaphores
 
+def get_defined_fallback_semaphore(name: str) -> Optional[LoggingSemaphore]:
+    return defined_fallback_semaphores.get(name)
+
 def get_undefined_fallback_semaphores() -> dict[str, LoggingSemaphore]:
-    return defined_fallback_semaphores
+    return undefined_fallback_semaphores
 
 def get_undefined_fallback_semaphores_lock() -> RLock:
     return undefined_fallback_semaphores_lock
+
+def get_undefined_fallback_semaphore(name: str) -> Optional[LoggingSemaphore]:
+    with get_undefined_fallback_semaphores_lock():
+        return undefined_fallback_semaphores.get(name)
 
 def add_undefined_fallback_semaphore(name, count=1):
     """Adds the given semaphore as an undefined fallback semaphore. Returns the added semaphore object."""
@@ -42,11 +51,19 @@ def maintain_undefined_semaphores():
         if undefined_fallback_semaphores:
             logging.info(f"tracking {len(undefined_fallback_semaphores)} undefined semaphores")
 
-def initialize_fallback_semaphores():
+def initialize_fallback_semaphores(force: Optional[bool]=False):
     """This needs to be called once at the very beginning of starting ACE."""
+    global fallback_semaphores_initialized
+    if fallback_semaphores_initialized and not force:
+        return
+
+    fallback_semaphores_initialized = True
 
     global defined_fallback_semaphores
     defined_fallback_semaphores = {}
+
+    global undefined_fallback_semaphores
+    undefined_fallback_semaphores = {}
 
     # we need some fallback functionality for when the network semaphore server is down
     # these semaphores serve that purpose

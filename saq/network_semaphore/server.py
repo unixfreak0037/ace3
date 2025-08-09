@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 import ipaddress
 import logging
@@ -13,13 +14,38 @@ from saq.configuration.config import get_config
 from saq.constants import CONFIG_NETWORK_SEMAPHORE
 from saq.environment import get_data_dir
 from saq.error.reporting import report_exception
+from saq.network_semaphore.fallback import initialize_fallback_semaphores
 from saq.network_semaphore.logging import LoggingSemaphore
-from saq.service import ACEServiceInterface
+
+@dataclass
+class NetworkSemaphoreConfig:
+    bind_address: str
+    bind_port: int
+    semaphore_limits: dict[str, int]
+    stats_dir: str
+
+    @staticmethod
+    def load_from_config() -> "NetworkSemaphoreConfig":
+        config = get_config()[CONFIG_NETWORK_SEMAPHORE]
+        semaphore_limits = {}
+        for key in config.keys():
+            if key.startswith('semaphore_'):
+                semaphore_name = key[len('semaphore_'):]
+                semaphore_limits[semaphore_name] = config.getint(key)
+
+        return NetworkSemaphoreConfig(
+            bind_address=config['bind_address'],
+            bind_port=config.getint('bind_port'),
+            semaphore_limits=semaphore_limits,
+            stats_dir=os.path.join(get_data_dir(), "var", "stats", "network_semaphore"))
 
 
-class NetworkSemaphoreServer(ACEServiceInterface):
-    def __init__(self):
-        self.service_config = get_config()['service_network_semaphore']
+class NetworkSemaphoreServer:
+    def __init__(self, config: Optional[NetworkSemaphoreConfig] = None):
+        if config is None:
+            config = NetworkSemaphoreConfig.load_from_config()
+
+        self.config = config
 
         # the main thread that listens for new connections
         self.server_thread: Optional[Thread] = None
@@ -32,51 +58,32 @@ class NetworkSemaphoreServer(ACEServiceInterface):
         # the main listening socket
         self.server_socket: Optional[socket.socket] = None
 
-        # configuration settings
-        if CONFIG_NETWORK_SEMAPHORE not in get_config():
-            raise RuntimeError("missing configuration service_network_semaphore")
-        
-        # binding address
-        self.bind_address = self.service_config['bind_address']
-        self.bind_port = self.service_config.getint('bind_port')
-
-        # source IP addresses that are allowed to connect
-        self.allowed_ipv4 = [ipaddress.ip_network(x.strip()) for x in self.service_config['allowed_ipv4'].split(',')]
-
         # load and initialize all the semaphores we're going to use
         self.defined_semaphores = {} # key = semaphore_name, value = LoggingSemaphore
         self.undefined_semaphores = {} # key = semaphore_name, value = LoggingSemaphore
         self.undefined_semaphores_lock = RLock()
 
+        # TODO emit statistics instead
         # we keep some stats and metrics on semaphores in this directory
-        self.stats_dir = os.path.join(get_data_dir(), self.service_config['stats_dir'])
-        if not os.path.isdir(self.stats_dir):
-            try:
-                os.makedirs(self.stats_dir)
-            except Exception as e:
-                logging.error(f"unable to create directory {self.stats_dir}: {e}")
-                sys.exit(1)
+        if not os.path.isdir(self.config.stats_dir):
+            os.makedirs(self.config.stats_dir)
 
     @property
-    def is_service_shutdown(self) -> bool:
+    def is_shutdown(self) -> bool:
         return self.shutdown_event.is_set()
 
     def start(self):
+        initialize_fallback_semaphores(force=True)
+
         self.server_thread = Thread(target=self.server_loop, name="Network Server")
         self.server_thread.start()
 
         self.monitor_thread = Thread(target=self.monitor_loop, name="Monitor")
         self.monitor_thread.daemon = True
         self.monitor_thread.start()
-
-        self.server_thread.join()
-        self.monitor_thread.join()
     
     def wait_for_start(self, timeout: float = 5) -> bool:
         return self.server_started_event.wait(timeout) and self.monitor_started_event.wait(timeout)
-    
-    def start_single_threaded(self):
-        raise RuntimeError("single threaded mode is not supported for this service")
     
     def stop(self):
         self.shutdown_event.set()
@@ -86,7 +93,7 @@ class NetworkSemaphoreServer(ACEServiceInterface):
             # force the accept() call to break
             try:
                 s = socket.socket()
-                s.connect((self.service_config['bind_address'], self.service_config.getint('bind_port')))
+                s.connect((self.config.bind_address, self.config.bind_port))
                 s.close()
             except:
                 pass # doesn't matter...
@@ -124,56 +131,40 @@ class NetworkSemaphoreServer(ACEServiceInterface):
 
     def load_configured_semaphores(self):
         """Loads all network semaphores defined in the configuration."""
-        for key in self.service_config.keys():
-            if key.startswith('semaphore_'):
-                semaphore_name = key[len('semaphore_'):]
-                count = self.service_config.getint(key)
-                self.defined_semaphores[semaphore_name] = LoggingSemaphore(count)
-                self.defined_semaphores[semaphore_name].semaphore_name = semaphore_name 
+        for semaphore_name, count in self.config.semaphore_limits.items():
+            self.defined_semaphores[semaphore_name] = LoggingSemaphore(count)
+            self.defined_semaphores[semaphore_name].semaphore_name = semaphore_name 
+
+    def get_semaphore(self, name: str) -> Optional[LoggingSemaphore]:
+        return self.defined_semaphores.get(name)
 
     def monitor_loop(self):
-        semaphore_status_path = os.path.join(self.stats_dir, 'semaphore.status')
+        semaphore_status_path = os.path.join(self.config.stats_dir, 'semaphore.status')
         self.monitor_started_event.set()
-        while not self.is_service_shutdown:
+        while not self.is_shutdown:
             with open(semaphore_status_path, 'w') as fp:
                 for semaphore in self.defined_semaphores.values():
                     fp.write(f'{semaphore.semaphore_name}: {semaphore.count}')
 
-            time.sleep(1)
+            self.shutdown_event.wait(1)
 
     def server_loop(self):
         self.load_configured_semaphores()
         self.server_started_event.set()
-        while not self.is_service_shutdown:
+        while not self.is_shutdown:
             try:
                 self.server_socket = socket.socket() # defaults to AF_INET, SOCK_STREAM
                 self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                self.server_socket.bind((self.bind_address, self.bind_port))
+                self.server_socket.bind((self.config.bind_address, self.config.bind_port))
                 self.server_socket.listen(5)
 
-                while not self.is_service_shutdown:
-                    logging.debug(f"waiting for next connection on {self.bind_address}:{self.bind_port}")
+                while not self.is_shutdown:
+                    logging.debug(f"waiting for next connection on {self.config.bind_address}:{self.config.bind_port}")
                     client_socket, remote_address = self.server_socket.accept()
                     remote_host, remote_port = remote_address
                     logging.info(f"got connection from {remote_host}:{remote_port}")
-                    if self.is_service_shutdown:
+                    if self.is_shutdown:
                         return
-
-                    allowed = False
-                    remote_host_ipv4 = ipaddress.ip_address(remote_host)
-                    for ipv4_network in self.allowed_ipv4:
-                        if remote_host_ipv4 in ipv4_network:
-                            allowed = True
-                            break
-
-                    #if not allowed:
-                        #logging.warning(f"blocking invalid remote host {remote_host}")
-                        #try:
-                            #client_socket.close()
-                        #except:
-                            #pass
-
-                        #continue
 
                     # start a thread to deal with this client
                     t = Thread(target=self.client_loop, args=(remote_host, remote_port, client_socket), name=f"Client {remote_host}")
